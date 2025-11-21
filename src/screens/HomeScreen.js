@@ -34,7 +34,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleStartSession = (sessionId) => {
-    navigation.navigate('RunSession', { sessionId });
+    navigation.navigate('SessionPreview', { sessionId });
   };
 
   const handleEditSession = (sessionId) => {

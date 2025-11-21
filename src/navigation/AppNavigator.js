@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import BlockLibraryScreen from '../screens/BlockLibraryScreen';
 import SessionBuilderScreen from '../screens/SessionBuilderScreen';
+import SessionPreviewScreen from '../screens/SessionPreviewScreen';
 import RunSessionScreen from '../screens/RunSessionScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import BlockEditScreen from '../screens/BlockEditScreen';
@@ -44,6 +45,11 @@ export default function AppNavigator() {
           name="SessionBuilder"
           component={SessionBuilderScreen}
           options={{ title: 'Session Builder' }}
+        />
+        <Stack.Screen
+          name="SessionPreview"
+          component={SessionPreviewScreen}
+          options={{ title: 'Session Preview' }}
         />
         <Stack.Screen
           name="RunSession"

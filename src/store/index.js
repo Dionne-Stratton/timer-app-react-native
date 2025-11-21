@@ -27,6 +27,7 @@ const useStore = create((set, get) => ({
   elapsedSecondsInSession: 0,
   isPreCountdown: false,
   preCountdownRemaining: 0,
+  isSessionComplete: false,
 
   // Initialize store - load data from storage
   initialize: async () => {
@@ -198,6 +199,7 @@ const useStore = create((set, get) => ({
         // Session complete
         set({
           isRunning: false,
+          isSessionComplete: true,
         });
       }
     }
@@ -242,6 +244,7 @@ const useStore = create((set, get) => ({
       elapsedSecondsInSession: 0,
       isPreCountdown: false,
       preCountdownRemaining: 0,
+      isSessionComplete: false,
     });
   },
 }));
