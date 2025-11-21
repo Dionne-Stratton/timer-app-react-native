@@ -17,6 +17,7 @@ import {
   formatTime,
 } from '../types';
 import { cueService } from '../services/cues';
+import { notificationService } from '../services/notifications';
 
 export default function RunSessionScreen({ navigation, route }) {
   const { sessionId } = route.params || {};
@@ -59,6 +60,24 @@ export default function RunSessionScreen({ navigation, route }) {
     }
   }, [sessionId]);
 
+  // Schedule notifications when session starts (after pre-countdown)
+  useEffect(() => {
+    if (runningSession && !isPreCountdown && isRunning && !isSessionComplete) {
+      // Session started - schedule notifications
+      notificationService.scheduleSessionNotifications(
+        runningSession,
+        currentIndex,
+        remainingSeconds,
+        settings.warningSecondsBeforeEnd
+      );
+    }
+
+    return () => {
+      // Clean up notifications on unmount
+      notificationService.cancelAllNotifications();
+    };
+  }, [runningSession, isPreCountdown, isRunning, currentIndex, remainingSeconds]);
+
   // Track block transitions for cues
   useEffect(() => {
     if (currentIndex !== prevIndexRef.current && currentIndex > prevIndexRef.current && !isPreCountdown && runningSession) {
@@ -66,8 +85,18 @@ export default function RunSessionScreen({ navigation, route }) {
       lastWarningTime.current = null;
       cueService.blockComplete(settings.enableSounds, settings.enableVibration);
       prevIndexRef.current = currentIndex;
+      
+      // Reschedule notifications for remaining blocks
+      if (isRunning) {
+        notificationService.rescheduleNotifications(
+          runningSession,
+          currentIndex,
+          remainingSeconds,
+          settings.warningSecondsBeforeEnd
+        );
+      }
     }
-  }, [currentIndex, isPreCountdown, runningSession]);
+  }, [currentIndex, isPreCountdown, runningSession, isRunning, remainingSeconds]);
 
   // Track session completion
   useEffect(() => {
@@ -193,6 +222,7 @@ export default function RunSessionScreen({ navigation, route }) {
           text: 'Stop',
           style: 'destructive',
           onPress: () => {
+            notificationService.cancelAllNotifications();
             stopSession();
             navigation.goBack();
           },
@@ -202,6 +232,7 @@ export default function RunSessionScreen({ navigation, route }) {
   };
 
   const handleComplete = () => {
+    notificationService.cancelAllNotifications();
     setShowCompleteModal(false);
     stopSession();
     navigation.goBack();
@@ -209,10 +240,21 @@ export default function RunSessionScreen({ navigation, route }) {
 
   const handleTogglePause = () => {
     if (isRunning) {
+      // Pause - cancel notifications
       pauseTimer();
+      notificationService.cancelAllNotifications();
     } else {
+      // Resume - reschedule notifications
       startTimer();
       lastWarningTime.current = null;
+      if (runningSession) {
+        notificationService.rescheduleNotifications(
+          runningSession,
+          currentIndex,
+          remainingSeconds,
+          settings.warningSecondsBeforeEnd
+        );
+      }
     }
   };
 
@@ -227,6 +269,18 @@ export default function RunSessionScreen({ navigation, route }) {
       handleSessionComplete();
     } else {
       cueService.blockComplete(settings.enableSounds, settings.enableVibration);
+      
+      // Reschedule notifications after skipping
+      if (runningSession) {
+        const newState = useStore.getState();
+        notificationService.rescheduleNotifications(
+          runningSession,
+          newState.currentIndex,
+          newState.remainingSeconds,
+          settings.warningSecondsBeforeEnd
+        );
+      }
+      
       if (!isRunning) {
         startTimer();
       }
@@ -240,8 +294,21 @@ export default function RunSessionScreen({ navigation, route }) {
     lastWarningTime.current = null;
     
     const success = previousBlock();
-    if (success && !isRunning) {
-      startTimer();
+    if (success) {
+      // Reschedule notifications after going back
+      if (runningSession) {
+        const newState = useStore.getState();
+        notificationService.rescheduleNotifications(
+          runningSession,
+          newState.currentIndex,
+          newState.remainingSeconds,
+          settings.warningSecondsBeforeEnd
+        );
+      }
+      
+      if (!isRunning) {
+        startTimer();
+      }
     }
   };
 

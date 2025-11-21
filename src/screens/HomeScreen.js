@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import useStore from '../store';
 import { getSessionTotalDuration, formatTime } from '../types';
+import { sessionSharingService } from '../services/sessionSharing';
 
 export default function HomeScreen({ navigation }) {
   const sessionTemplates = useStore((state) => state.sessionTemplates);
   const deleteSessionTemplate = useStore((state) => state.deleteSessionTemplate);
   const duplicateSessionTemplate = useStore((state) => state.duplicateSessionTemplate);
+  const addSessionTemplate = useStore((state) => state.addSessionTemplate);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -64,7 +66,29 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
+  const handleShareSession = async (sessionId) => {
+    const session = sessionTemplates.find((s) => s.id === sessionId);
+    if (!session) {
+      Alert.alert('Error', 'Session not found');
+      return;
+    }
+
+    await sessionSharingService.exportSession(session);
+  };
+
+  const handleImportSession = async () => {
+    const importedSession = await sessionSharingService.importSession();
+    if (importedSession) {
+      await addSessionTemplate(importedSession);
+      // Refresh the list
+      await useStore.getState().initialize();
+      Alert.alert('Success', 'Session imported successfully!');
+    }
+  };
+
   const handleSessionOptions = (sessionId, sessionName) => {
+    const session = sessionTemplates.find((s) => s.id === sessionId);
+    
     Alert.alert(
       sessionName,
       'Choose an action:',
@@ -73,6 +97,10 @@ export default function HomeScreen({ navigation }) {
         {
           text: 'Edit',
           onPress: () => handleEditSession(sessionId),
+        },
+        {
+          text: 'Share',
+          onPress: () => handleShareSession(sessionId),
         },
         {
           text: 'Duplicate',
@@ -142,6 +170,13 @@ export default function HomeScreen({ navigation }) {
           activeOpacity={0.8}
         >
           <Text style={styles.activitiesButtonText}>Activities</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.importButton}
+          onPress={handleImportSession}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.importButtonText}>Import</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.settingsButton}
@@ -255,6 +290,20 @@ const styles = StyleSheet.create({
   },
   activitiesButtonText: {
     color: '#6200ee',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  importButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#1976d2',
+  },
+  importButtonText: {
+    color: '#1976d2',
     fontSize: 14,
     fontWeight: '600',
   },
