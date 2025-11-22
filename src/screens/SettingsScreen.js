@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import useStore from '../store';
 
 export default function SettingsScreen({ navigation }) {
@@ -124,7 +125,8 @@ export default function SettingsScreen({ navigation }) {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content}>
       {/* Pre-countdown Settings */}
       {renderSettingSection('Pre-countdown', (
         <View>
@@ -203,7 +205,8 @@ export default function SettingsScreen({ navigation }) {
           Import a session file (.bztimer or .session.json) from the session options menu
         </Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

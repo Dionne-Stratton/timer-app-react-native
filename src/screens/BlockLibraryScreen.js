@@ -8,6 +8,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import useStore from '../store';
 import { BlockType, getBlockTimingSummary } from '../types';
 
@@ -77,7 +78,7 @@ export default function BlockLibraryScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
         data={blockTemplates}
         renderItem={renderBlockItem}
@@ -100,7 +101,7 @@ export default function BlockLibraryScreen({ navigation }) {
       >
         <Text style={styles.addButtonText}>+ New Activity</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 
