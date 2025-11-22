@@ -8,17 +8,29 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import useStore from '../store';
 import { getSessionTotalDuration, formatTime } from '../types';
 import { sessionSharingService } from '../services/sessionSharing';
 
 export default function SessionsScreen({ navigation }) {
+  const [safeAreaKey, setSafeAreaKey] = React.useState(0);
+  const insets = useSafeAreaInsets();
   const sessionTemplates = useStore((state) => state.sessionTemplates);
   const deleteSessionTemplate = useStore((state) => state.deleteSessionTemplate);
   const duplicateSessionTemplate = useStore((state) => state.duplicateSessionTemplate);
   const addSessionTemplate = useStore((state) => state.addSessionTemplate);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Force recalculation when screen comes back into focus (after modal closes)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Force re-render to recalculate safe areas after returning from modal
+      setSafeAreaKey(prev => prev + 1);
+      return () => {};
+    }, [])
+  );
 
   useEffect(() => {
     // Load data on mount
@@ -81,8 +93,7 @@ export default function SessionsScreen({ navigation }) {
     const importedSession = await sessionSharingService.importSession();
     if (importedSession) {
       await addSessionTemplate(importedSession);
-      // Refresh the list
-      await useStore.getState().initialize();
+      // No need to call initialize() - addSessionTemplate already saves and updates the store
       Alert.alert('Success', 'Session imported successfully!');
     }
   };
@@ -146,7 +157,7 @@ export default function SessionsScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View key={safeAreaKey} style={[styles.container, { paddingTop: insets.top }]}>
       <FlatList
         data={sessionTemplates}
         renderItem={renderSessionItem}
@@ -171,7 +182,7 @@ export default function SessionsScreen({ navigation }) {
       >
         <Text style={styles.addButtonText}>+ New Session</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 

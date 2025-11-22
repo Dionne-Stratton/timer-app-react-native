@@ -8,12 +8,26 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import useStore from '../store';
+import { sessionSharingService } from '../services/sessionSharing';
 
 export default function SettingsScreen({ navigation }) {
+  const [safeAreaKey, setSafeAreaKey] = React.useState(0);
+  const insets = useSafeAreaInsets();
   const settings = useStore((state) => state.settings);
   const updateSettings = useStore((state) => state.updateSettings);
+  const addSessionTemplate = useStore((state) => state.addSessionTemplate);
+  
+  // Force recalculation when screen comes back into focus (after modal closes)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Force re-render to recalculate safe areas after returning from modal
+      setSafeAreaKey(prev => prev + 1);
+      return () => {};
+    }, [])
+  );
 
   const handlePreCountdownChange = (seconds) => {
     updateSettings({ preCountdownSeconds: seconds });
@@ -27,9 +41,15 @@ export default function SettingsScreen({ navigation }) {
     updateSettings({ [key]: !settings[key] });
   };
 
-  const handleImportSession = () => {
-    // Navigate to import screen or show import dialog
-    navigation.navigate('ImportSession');
+  const handleImportSession = async () => {
+    const importedSession = await sessionSharingService.importSession();
+    // Force re-render to recalculate safe areas after modal closes
+    setSafeAreaKey(prev => prev + 1);
+    if (importedSession) {
+      await addSessionTemplate(importedSession);
+      // No need to call initialize() - addSessionTemplate already saves and updates the store
+      Alert.alert('Success', 'Session imported successfully!');
+    }
   };
 
   const renderSettingSection = (title, children) => (
@@ -125,7 +145,7 @@ export default function SettingsScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View key={safeAreaKey} style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.content}>
       {/* Pre-countdown Settings */}
       {renderSettingSection('Pre-countdown', (
@@ -193,20 +213,17 @@ export default function SettingsScreen({ navigation }) {
         <Text style={styles.sectionTitle}>Session Sharing</Text>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => Alert.alert(
-            'Import Session',
-            'Import session functionality will be available in the session options menu on the Home screen.',
-            [{ text: 'OK' }]
-          )}
+          onPress={handleImportSession}
+          activeOpacity={0.8}
         >
           <Text style={styles.actionButtonText}>Import Session</Text>
         </TouchableOpacity>
         <Text style={styles.actionDescription}>
-          Import a session file (.bztimer or .session.json) from the session options menu
+          Import a session file (.bztimer) from your device storage
         </Text>
       </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

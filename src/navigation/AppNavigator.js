@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 // Screens
@@ -89,10 +89,11 @@ function LibraryStack() {
 }
 
 export default function AppNavigator() {
+  const insets = useSafeAreaInsets();
+  
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <Tab.Navigator
+    <NavigationContainer>
+      <Tab.Navigator
           screenOptions={({ route }) => ({
             tabBarIcon: ({ focused, color, size }) => {
               let iconName;
@@ -116,9 +117,9 @@ export default function AppNavigator() {
               backgroundColor: '#fff',
               borderTopWidth: 1,
               borderTopColor: '#e0e0e0',
-              paddingBottom: 5,
+              paddingBottom: Math.max(insets.bottom, 5),
               paddingTop: 5,
-              height: 60,
+              height: 60 + Math.max(insets.bottom, 0),
             },
           })}
         >
@@ -144,6 +145,5 @@ export default function AppNavigator() {
           />
         </Tab.Navigator>
       </NavigationContainer>
-    </SafeAreaProvider>
   );
 }
