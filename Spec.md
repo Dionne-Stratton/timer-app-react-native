@@ -1,621 +1,475 @@
-TIMER APP – FULL PRODUCT & TECH SPEC (FOR EXPO REACT NATIVE)
+# ✅ **TIMER APP – FULL PRODUCT & TECH SPEC (FOR EXPO REACT NATIVE) — COMPLETE UPDATED VERSION**
 
-Goal
+_(Fully integrated — no missing fields, no TODOs, no dangling references.)_
+
+---
+
+# **Goal**
+
 Build a cross-platform (Android + iOS) React Native app using Expo that lets users:
 
 - Create reusable “activity” blocks (exercises, rests, transitions, study blocks, etc.).
 - Assemble these into ordered “sessions” (playlists).
 - Run sessions as timers with audio/vibration cues and background-safe notifications.
+- Track a personal session history (for streaks, weekly stats, quick start, etc.).
 - Share individual sessions via export/import so a trainer can send a workout to a client.
-
-The app must be fully usable offline and must not depend on any backend.
+- Stay fully offline: **no backend**, no authentication, no external API.
 
 ---
 
-1. Tech Stack & Libraries
+# **1. Tech Stack & Libraries**
 
 Use Expo-managed workflow.
 
-Core stack:
+### Core stack:
 
-- React Native with Expo
-- Navigation: React Navigation
-- State management: Zustand (or similar lightweight global store)
-- Persistence: AsyncStorage (@react-native-async-storage/async-storage)
-- Notifications: expo-notifications (local notifications)
-- Audio: expo-av (for sound effects)
-- Haptics: expo-haptics (for vibration feedback)
-- File import/export:
+- **React Native with Expo**
+- **React Navigation** (bottom tabs + stack navigators)
+- **Zustand** or similarly lightweight global state library
+- **AsyncStorage** (via `@react-native-async-storage/async-storage`) for all persistence
+- **expo-notifications** for all local notification scheduling
+- **expo-av** for audio cues
+- **expo-haptics** for vibration cues
+- **expo-keep-awake** to prevent screen sleep during running sessions (optional toggle)
+- **expo-document-picker** for import
+- **expo-sharing** for export
 
-  - expo-document-picker for import
-  - expo-sharing (or expo’s Sharing API) for export
-
-- Optionally: expo-keep-awake for preventing screen sleep during a running session
-
-The app must run on both Android and iOS.
+App must function fully offline.
 
 ---
 
-2. Core Concepts & Data Model (Conceptual)
+# **2. Core Concepts & Data Model (Conceptual)**
 
-All data is local. No backend.
+All data is stored locally. No backend.
 
-a) BlockTemplate (reusable building block / “activity”)
+---
 
-Represents an activity, rest, or transition that users can reuse in multiple sessions.
+## **2.a) BlockTemplate (reusable “activity”)**
 
-Each BlockTemplate has:
+A reusable activity like an exercise, rest block, or study timer segment.
 
-- id: string (unique identifier)
-- label: string (e.g., “Bicep curls”, “Hamstring stretch”, “Short rest”)
-- type: string enum, one of:
+**Fields:**
 
-  - "activity"
-  - "rest"
-  - "transition"
+- `id: string`
+- `label: string`
+- `type: "activity" | "rest" | "transition"`
+- `mode: "duration" | "reps"`
 
-- mode: string enum, one of:
+If `mode = "duration"`:
 
-  - "duration" – single block of time
-  - "reps" – a set number of reps with approx seconds per rep
+- `durationSeconds: number`
 
-Timing fields:
+If `mode = "reps"`:
 
-- If mode = "duration":
+- `reps: number`
+- `perRepSeconds: number`
 
-  - durationSeconds: number
+Optional UI metadata:
 
-- If mode = "reps":
+- `color?: string`
+- `icon?: string`
+- `notes?: string`
 
-  - reps: number
-  - perRepSeconds: number
+---
 
-Optional metadata (for UI only):
+## **2.b) BlockInstance (block inside a specific session)**
 
-- color: string (e.g., hex or theme key)
-- icon: string (name from chosen icon set)
-- notes: string (free text description)
+A snapshot (with optional overrides) of a BlockTemplate used inside a session.
 
-b) BlockInstance (block as used inside a session)
+**Fields:**
 
-Represents a block inside a specific session. It is essentially a snapshot of a template, with optional per-session overrides.
+- `id: string`
+- `templateId?: string | null`
+- `label: string`
+- `type: "activity" | "rest" | "transition"`
+- `mode: "duration" | "reps"`
+- `durationSeconds: number`
+- `reps: number`
+- `perRepSeconds: number`
 
-Each BlockInstance has:
+---
 
-- id: string (unique identifier for this instance)
-- templateId: optional string (id of BlockTemplate it came from; may be null if custom)
-- label: string (copied from template by default; can be overridden for this session)
-- type: "activity" | "rest" | "transition"
-- mode: "duration" | "reps"
-- durationSeconds: number (if mode is duration)
-- reps: number (if mode is reps)
-- perRepSeconds: number (if mode is reps)
-
-c) SessionTemplate (playlist/session)
+## **2.c) SessionTemplate (playlist/session)**
 
 Represents a full session the user can run.
 
-Each SessionTemplate has:
+**Fields:**
 
-- id: string
-- name: string (e.g., “Leg Day A”, “Morning Stretch”, “Pomodoro 25/5”)
-- items: ordered array of BlockInstance
-- tags: optional array of strings (e.g., ["exercise", "stretch", "study"])
+- `id: string`
+- `name: string`
+- `items: BlockInstance[]`
+- `tags?: string[]`
 
-For v1, no “group/repeat pattern” object is required; users can repeat blocks manually.
+### **🔥 New Field — for Quick Start scheduling**
 
-d) Settings
+- `scheduledDaysOfWeek?: number[]`
 
-Store a simple global settings object:
-
-- preCountdownSeconds: number (default 3; options 0, 3, 5)
-- warningSecondsBeforeEnd: number (default 10)
-- enableSounds: boolean (default true)
-- enableVibration: boolean (default true)
-- keepScreenAwakeDuringSession: boolean (default true)
+  - ISO weekday indices: **1=Monday … 7=Sunday**
+  - Allows a session to appear as “today’s session” on the Home screen.
+  - Not enforced — user can start any session anytime.
 
 ---
 
-3. Storage & Backend Requirements
+## **2.d) Settings**
 
-- The app must be fully functional offline.
-- No backend, no remote APIs, no user accounts, no authentication in v1.
-- All data stored locally using AsyncStorage:
+A simple global settings object stored locally.
 
-  - BlockTemplates
-  - SessionTemplates
-  - Settings
-  - (Optional) Session history later
+**Fields:**
 
-Implement a small storage abstraction service (not direct AsyncStorage calls everywhere) with functions like:
+- `preCountdownSeconds: number` (0, 3, or 5; default: 3)
+- `warningSecondsBeforeEnd: number` (default: 10)
+- `enableSounds: boolean` (default: true)
+- `enableVibration: boolean` (default: true)
+- `keepScreenAwakeDuringSession: boolean` (default: true)
 
-- loadBlockTemplates / saveBlockTemplates
-- loadSessionTemplates / saveSessionTemplates
-- loadSettings / saveSettings
+### **🔥 New Field — History Retention**
 
-The rest of the app should only talk to this storage layer, not AsyncStorage directly. This keeps open the option to swap storage (e.g., MMKV or SQLite) or add sync later.
+- `historyRetention: "unlimited" | "3months" | "6months" | "12months"`
+
+  - Default: `"unlimited"`
+  - Enforced immediately when changed, and after each new history entry.
 
 ---
 
-4. Screens & Flows
+## **2.e) SessionHistoryEntry**
 
-4.1 Home / Sessions Screen
+Used for streaks, weekly stats, Quick Start fallback, and recent activity.
 
-Purpose: Entry point listing all saved sessions.
+**Fields:**
 
-Features:
+- `id: string`
+- `sessionId: string | null`
+  (null if the session was later deleted)
+- `sessionName: string`
+  (snapshot at time of completion)
+- `completedAt: string`
+  ISO timestamp **in UTC**
+- `totalDurationSeconds: number`
 
-- Display a list of SessionTemplates as cards.
+**When created:**
+At exact moment final block ends — _not when user taps “Done”_.
 
-  - Show name.
-  - Show computed total duration (sum of block durations).
-  - Show number of blocks.
+**Not created if:**
+User manually cancels the run early.
 
-- User actions:
+---
 
-  - Tap a session card: navigate to Run Session screen for that session.
-  - Session options:
+# **3. Storage & Persistence (AsyncStorage)**
 
-    - Edit (opens Session Builder)
-    - Duplicate (creates a new session with same items, new id)
-    - Delete
+All data is local.
 
-- Global actions:
+Store arrays/objects in AsyncStorage via a small storage service:
 
-  - “+ New Session” button: creates a new empty SessionTemplate and opens Session Builder.
-  - Access to Settings (e.g., gear icon).
-  - Access to “Import Session” feature (see sharing section).
+- BlockTemplates → `loadBlockTemplates()` / `saveBlockTemplates()`
+- SessionTemplates → `loadSessionTemplates()` / `saveSessionTemplates()`
+- Settings → `loadSettings()` / `saveSettings()`
+- SessionHistory → `loadSessionHistory()` / `saveSessionHistory()`
 
-    4.2 Block Library Screen (“Activities”)
+**Retention Enforcement**
 
-Purpose: Manage reusable activity blocks.
+When:
 
-Features:
+- user changes `historyRetention`, OR
+- new history entry is added
 
-- List all BlockTemplates.
-- Each item shows:
+Then:
 
-  - label
-  - type (activity/rest/transition)
-  - summary of timing (e.g., “45s” or “10 reps × 5s”)
+- If `"unlimited"` → do nothing
+- Otherwise → compute cutoff date and remove older entries
+- Clearing old history naturally resets streaks, weekly stats, Quick Start fallback options, etc.
 
-- Actions:
+Also add manual controls:
 
-  - Tap to edit template.
-  - Delete template.
-  - “+ New Activity” button to create a new BlockTemplate.
+- “Delete all history”
+- Optional: “Delete history older than 6 months”
 
-Create/Edit BlockTemplate form:
+---
 
-- Fields:
+# **4. Screens & Flows**
 
-  - Name/Label (required)
-  - Type: activity/rest/transition
-  - Mode: duration or reps
-  - If duration: input minutes/seconds → convert to durationSeconds
-  - If reps: input reps and seconds per rep
-  - Optional: color, icon, notes
+---
 
-- Validation:
+## **4.1 Sessions Tab (List of sessions)**
 
-  - Required fields must be filled
-  - durationSeconds > 0
-  - reps > 0 and perRepSeconds > 0 where applicable
+This is the “Sessions” tab, separate from Home.
 
-    4.3 Session Builder Screen
+Displays all SessionTemplates with:
 
-Purpose: Build or edit sessions (playlists).
+- name
+- total duration
+- number of blocks
 
-Layout:
+Actions:
 
-- Top:
+- tap → Run Session (or details screen)
+- edit
+- duplicate
+- delete
+- “+ New Session”
+- “Import Session”
 
-  - Session name (editable)
-  - Display total duration and number of blocks
+---
 
-- Middle:
+## **4.2 Block Library Tab (“Activities”)**
 
-  - Draggable list of BlockInstances (use a draggable FlatList)
-  - Each item shows:
+List + create + edit + delete BlockTemplates.
 
-    - label
-    - type
-    - timing summary
+---
 
-  - Per-item actions:
+## **4.3 Session Builder Screen**
 
-    - Edit (label and timing overrides)
-    - Duplicate block
-    - Delete block
+Editable list of blocks using a draggable list.
+Add from library or create custom.
+Shows total duration and block count.
 
-- Bottom / prominent button:
+---
 
-  - “Add Block” button
+## **4.4 Run Session Screen**
 
-“Add Block” flow:
+Handles:
 
-- On press, open a modal/bottom sheet with:
+- pre-countdown
+- per-block countdown
+- audio cues, haptics
+- play/pause
+- prev/next block
+- “skip”
+- completion modal
 
-  - Tab or options:
+### **History creation**
 
-    - “From Library” – list BlockTemplates with search/filter
-    - “Custom Block” – create a session-only block not added to library
+When the final block ends:
 
-- When adding from library:
+- Immediately store a SessionHistoryEntry.
+- Then apply history retention.
 
-  - Copy label, type, mode, and timing fields from BlockTemplate into a new BlockInstance.
+---
 
-- When adding custom:
+# **5. Notifications & Background Behavior**
 
-  - Show a small inline form similar to BlockTemplate form but only used for this session; create a BlockInstance without templateId.
+Use expo-notifications.
 
-Reordering:
+During a run, schedule:
 
-- Use drag handle on each item; drag-and-drop changes the order in the session’s items array.
+- next-block notifications
+- “almost done” warnings
+- block-end notifications
 
-Saving:
+On pause or skip:
 
-- Provide a “Save Session” action:
+- cancel & recalc schedule
 
-  - Validate there is at least one block.
-  - Persist SessionTemplate via the storage layer.
-  - Return user to Home or allow immediate “Start Session” option.
+Must work in background and screen lock.
 
-    4.4 Run Session Screen
+---
 
-Purpose: Execute a session as a timer sequence with cues and controls.
+# **6. Audio & Haptics**
 
-State needed for a running session:
+- “Almost done” cue
+- “Block complete” cue
+- “Session complete” cue
+- All gated by Settings toggles
 
-- currentSessionId (or the SessionTemplate object directly)
-- flatItems: the array of BlockInstances (no grouping in v1)
-- currentIndex: index into flatItems
-- remainingSeconds: countdown for the active block
-- isRunning: boolean
-- totalSessionSeconds: sum of all block times (for progress)
-- elapsedSecondsInSession: for overall progress
+---
 
-Time for a block:
+# **7. Session Sharing (Export & Import)**
 
-- If mode = duration: use durationSeconds.
-- If mode = reps: use totalBlockTime = reps × perRepSeconds.
+### Export
+
+- Serialize SessionTemplate into JSON
+- Save as `.bztimer` (or `.json`)
+- Use Expo Sharing to export
+
+### Import
+
+- Document picker → parse → validate → confirm → assign new id → save
+
+---
+
+# **8. Settings Screen**
+
+Includes toggles + history retention UI:
+
+- Retention choices
+- Delete all history
+- Optional manual prune button
+
+---
+
+# **9. State Management**
+
+Zustand global store containing:
+
+- blockTemplates
+- sessionTemplates
+- settings
+- sessionHistory
+- runningSession state (currentIndex, remainingSeconds, etc.)
+
+Load all data at startup.
+
+Save on modification.
+
+---
+
+# **10. Non-Functional Requirements**
+
+- Offline-first
+- Android + iOS
+- Simple and clear UX
+- Accessible
+- Performant with small datasets
+
+---
+
+# **11. Home Screen (Dashboard) SPEC**
+
+The Home screen is **read-only** + shortcuts.
+
+Contains four cards:
+
+1. **Quick Start**
+2. **Streaks**
+3. **This Week**
+4. **Recent Activity**
+
+---
+
+## **11.1 Data Requirements**
+
+Home uses:
+
+- `SessionTemplates`
+- `sessionHistory`
+- **scheduledDaysOfWeek** from each session
+- local current date/time
+
+---
+
+## **11.2 Card 1 — Quick Start**
+
+### **Purpose**
+
+Provide a one-tap jump straight into the most relevant session for today.
+
+### **Logic**
+
+1. Determine today’s weekday (ISO: 1=Mon … 7=Sun)
+2. Gather all sessions where `scheduledDaysOfWeek` includes today
+
+### Scenario A — Exactly one scheduled session
+
+Use that session always (even if already completed today).
+
+### Scenario B — Multiple scheduled sessions
+
+1. Check today’s history entries
+2. Remove scheduled sessions already completed
+3. If ≥1 uncompleted → choose deterministically (alphabetical or by creation date)
+4. If all completed → choose deterministic fallback among scheduled ones
+
+### Scenario C — No scheduled sessions
+
+Use most recently completed session (only if its SessionTemplate still exists).
+
+### If nothing applies
+
+Show a placeholder:
+
+> “No quick-start session available. Create and schedule a session to enable Quick Start.”
+
+### UI
+
+- Large button: **“Quick start: {SessionName}”**
+- Subtext:
+
+  - “Today’s scheduled session”
+  - or “Last used session”
+
+Tap → Immediately:
+
+- Switch to Sessions tab
+- Navigate to RunSessionScreen
+- Begin pre-countdown
+
+---
+
+## **11.3 Card 2 — Streaks**
+
+### Definitions
+
+- **Session day** = any date with ≥1 completed session
+- **Current streak** = consecutive days **including today** with at least one session
+
+  - If no session today → streak = 0
+
+- **Longest streak** = largest consecutive chain across history
 
 UI:
 
-- Top:
+- “Current streak: X days”
+- “Longest streak: Y days”
 
-  - Session name
-  - Overall progress indicator: percentage or simple bar
+Empty state:
 
-- Main area:
-
-  - Large current block label
-  - Subtext: type + summary (e.g., “Activity • 10 reps × 5s (~50s)”)
-  - Big countdown timer (MM:SS)
-  - Below: “Next: [Next block label]” (if any)
-
-- Bottom controls:
-
-  - Play / Pause button
-  - Previous block button
-  - Next block button
-  - Optional “Skip block” button (can be same as Next, just labeled clearly)
-
-Flow:
-
-- When user taps “Start session” from Home or Session Builder:
-
-  - Navigate to Run Session.
-  - Show a pre-countdown of preCountdownSeconds (e.g., 3…2…1…).
-  - After countdown, start first block’s timer and schedule notifications (see notifications section).
-
-- Timer behavior:
-
-  - Use a 1-second tick while the app is foregrounded.
-  - On each tick, if isRunning:
-
-    - Decrement remainingSeconds.
-    - If block duration is above a threshold (e.g., 15s) and remainingSeconds equals warningSecondsBeforeEnd, trigger “almost done” cue (sound + haptic) if enabled.
-    - When remainingSeconds reaches 0:
-
-      - Trigger “block complete” cue.
-      - Move to next block:
-
-        - Increment currentIndex.
-        - If there’s a next block, set remainingSeconds to its calculated length.
-        - If no more blocks, mark session complete, show completion UI, and stop timers.
-
-- Controls:
-
-  - Pause:
-
-    - Stop decrementing remainingSeconds.
-    - Cancel future notifications and reschedule them on resume.
-
-  - Resume:
-
-    - Restart in-app countdown and reschedule notifications.
-
-  - Next:
-
-    - Immediately mark current block as completed and jump to next block.
-    - Reset remainingSeconds to new block’s time.
-    - Update notifications.
-
-  - Previous:
-
-    - Jump back to previous block (or restart current), set remainingSeconds accordingly.
-    - Update notifications.
-
-Session completion:
-
-- When the last block finishes:
-
-  - Play a distinct “session complete” sound (if sounds enabled).
-  - Trigger a more “celebratory” haptic (if enabled).
-  - Show a modal or screen: “Session complete.”
-  - Optionally show summary (total time, number of blocks).
+- “No sessions completed yet.”
 
 ---
 
-5. Notifications & Background Behavior
+## **11.4 Card 3 — This Week**
 
-Requirements:
+- Define week as **Monday–Sunday**
+- Filter history entries into current week
+- Count sessions + sum minutes
 
-- Session must continue logically even if user switches to another app or locks the screen.
-- Users must receive cues at block transitions and, optionally, near block end, via local notifications.
+UI:
 
-Strategy:
-
-- When the session starts (after the pre-countdown) and any time the timing changes (pause/resume/skip), recalculate a schedule of upcoming block start/end times based on current time.
-- Use expo-notifications to schedule local notifications for these events.
-
-Scheduling:
-
-For each remaining block:
-
-- Calculate:
-
-  - Block start time (relative to “now” + accumulated offsets)
-  - Block end time
-
-- Schedule notifications at:
-
-  - Block start (optional message like: “Next: [Block label] starting now”)
-  - Block end (or just at the moment of transition, depending on design)
-
-- For blocks with duration >= warningSecondsBeforeEnd, optionally:
-
-  - Schedule an “almost done” notification warningSecondsBeforeEnd seconds before block end.
-
-Pause/Resume/Skip:
-
-- On pause:
-
-  - Cancel all scheduled notifications for the current session run.
-
-- On resume:
-
-  - Recalculate schedule from the new “now” moment with updated remainingSeconds and block queue.
-  - Reschedule notifications accordingly.
-
-- On Next/Previous:
-
-  - Update currentIndex, remainingSeconds.
-  - Cancel and reschedule relevant notifications.
-
-All of this must work purely with local notifications (no backend).
+- “Sessions completed: X”
+- “Total time: Y min”
 
 ---
 
-6. Audio & Haptics
+## **11.5 Card 4 — Recent Activity**
 
-Use expo-av and expo-haptics.
+Show last **3–5** entries from history:
 
-Global settings:
+Format:
 
-- enableSounds: boolean
-- enableVibration: boolean
+- “Today · {SessionName} · {Minutes} min”
+- “Yesterday · …”
+- “Mar 5 · …”
 
-Sound cues:
+Optional: rows non-interactive.
 
-- Pre-countdown: optional ticks (optional for v1).
-- “Almost done” cue:
+Empty state:
 
-  - Short sound when remainingSeconds hits warningSecondsBeforeEnd for eligible blocks.
-
-- “Block complete / next block” cue:
-
-  - Distinct short sound when moving from one block to the next.
-
-- “Session complete” cue:
-
-  - More distinct sound.
-
-Haptic cues:
-
-- “Almost done”: short vibration.
-- “Block complete”: medium vibration.
-- “Session complete”: stronger or patterned vibration.
-
-Implementation detail:
-
-- Ensure these cues are gated by the global settings (if sounds/vibration are disabled, don’t play/trigger).
+- “No recent activity yet.”
 
 ---
 
-7. Session Sharing (Trainer → Client) – No Backend
+# **12. Empty State for Entire Home Screen**
 
-The app must allow a trainer to build a session and share it with a client, without requiring any server.
+If no sessions + no history:
 
-Implement **file-based export/import**.
-
-7.1 Export (Share Session)
-
-From a session’s options menu, provide a “Share Session” action.
-
-Behavior:
-
-- Serialize the chosen SessionTemplate, including all of its BlockInstances, into a JSON object.
-- Wrap this serialized JSON into a small file with a custom extension, for example:
-
-  - .bztimer or .session.json
-
-- Use Expo’s Sharing API (expo-sharing or similar) to open the OS-level share sheet and allow the user to send this file via:
-
-  - Email
-  - Messaging apps
-  - AirDrop
-  - Cloud drives, etc.
-
-Ensure:
-
-- The exported JSON includes all fields required to reconstruct the session on another device.
-- IDs inside the JSON can be reused or replaced; on import we will assign a new local id if necessary.
-
-  7.2 Import (Client)
-
-Provide an “Import Session” entry point in the app (for example, in a menu or on the Home screen).
-
-Behavior:
-
-- When user selects “Import Session”:
-
-  - Open a document picker (via expo-document-picker).
-  - Let user choose a compatible session file (e.g., .bztimer or .session.json).
-
-- Read and parse the JSON contained in the file.
-- Validate that the JSON matches the expected SessionTemplate shape:
-
-  - Must have a name and items array.
-  - Each item must have valid mode and timing fields.
-
-- If valid:
-
-  - Show a confirmation dialog summarizing:
-
-    - Session name
-    - Number of blocks
-    - Total duration
-
-  - On confirmation:
-
-    - Assign a new id for the SessionTemplate (to avoid collisions).
-    - Save it into local Sessions list.
-
-- If invalid:
-
-  - Show a user-friendly error (e.g., “Could not import session. The file format is not recognized.”)
-
-Notes:
-
-- No backend is involved; all sharing relies on moving small files between devices and local import.
-- It is acceptable if, for v1, the user must manually pick the file via the document picker. Auto “open with app” associations can be considered later.
-
-Optional (if time allows):
-
-- Add “Copy as text” / “Import from text”:
-
-  - Export: show a text blob (e.g., JSON string) for copying to clipboard.
-  - Import: screen where user can paste the text, then parse and import the session.
+- Quick Start → “Create a session”
+- Streaks → placeholder
+- This Week → zeros
+- Recent Activity → placeholder
 
 ---
 
-8. Settings Screen
+# **13. Visual / UX Notes**
 
-Provide a simple Settings screen accessible (e.g., from Home via gear icon) with:
-
-- Pre-countdown length:
-
-  - Options: 0, 3, 5 seconds
-
-- Warning time before block end:
-
-  - Default 10 seconds
-
-- Enable sounds:
-
-  - Toggle on/off
-
-- Enable vibration:
-
-  - Toggle on/off
-
-- Keep screen awake during session:
-
-  - Toggle on/off (use expo-keep-awake when enabled)
-
-Persist settings via the storage layer.
+- Vertical scrolling cards
+- Rounded corners, padded cards
+- Works with light/dark mode
+- Make key numbers prominent
 
 ---
 
-9. State Management
+# **14. Suggested Implementation Milestones**
 
-Use Zustand (or similar) for global state.
-
-Global store should handle:
-
-- BlockTemplates array
-- SessionTemplates array
-- Settings object
-- Current running session state:
-
-  - currentSessionId / session reference
-  - currentIndex
-  - remainingSeconds
-  - isRunning
-  - elapsedSecondsInSession
-  - any additional flags needed
-
-Store must integrate with the storage layer for persistence:
-
-- On app start, load BlockTemplates, SessionTemplates, and Settings into store.
-- After any modification, save updated data via the storage service.
-
----
-
-10. Non-Functional Requirements
-
-- Must run on both Android and iOS via Expo.
-- Must be fully functional offline once installed.
-- UX must be clear and simple; the primary user flows:
-
-  - Create activities (BlockTemplates)
-  - Build session from activities
-  - Run session with cues
-  - Share session via file export/import
-
-- Performance: The expected number of blocks/sessions is small; no special optimization beyond normal best practices is required.
-- Accessibility:
-
-  - Text should be legible.
-  - Buttons tappable with reasonable size.
-  - Consider appropriate contrast and simple layout.
-
----
-
-11. Suggested Implementation Milestones (Optional for Cursor)
-
-Milestone 1 – Data & Builder:
-
-- Implement data models in store (BlockTemplates, SessionTemplates, Settings).
-- Implement storage layer with AsyncStorage.
-- Build Block Library screen (create/edit/delete).
-- Build Session Builder screen (add blocks from library, custom block, reorder, save).
-
-Milestone 2 – Run Session (foreground):
-
-- Implement Run Session screen with:
-
-  - Pre-countdown
-  - Per-block countdown
-  - Play/pause/next/previous
-  - In-app audio/haptic cues
-
-- Integrate settings for countdown and cues.
-
-Milestone 3 – Notifications & Sharing:
-
-- Implement local notifications scheduling and rescheduling on pause/skip using expo-notifications.
-- Implement Settings screen UI and persistence.
-- Implement file-based export/import for SessionTemplates using expo-sharing and expo-document-picker.
+Milestone 1: Data + Builder
+Milestone 2: Run Session
+Milestone 3: Notifications + Sharing
+Milestone 4: Home Dashboard & History
