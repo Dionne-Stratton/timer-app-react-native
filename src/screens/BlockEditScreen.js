@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   typeButtonActive: {
-    borderColor: '#6200ee',
+    borderColor: '#4A7C9E',
     backgroundColor: '#f3e5f5',
   },
   typeButtonText: {
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   typeButtonTextActive: {
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   modeButtonContainer: {
     flexDirection: 'row',
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modeButtonActive: {
-    borderColor: '#6200ee',
+    borderColor: '#4A7C9E',
     backgroundColor: '#f3e5f5',
   },
   modeButtonText: {
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   modeButtonTextActive: {
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   durationContainer: {
     flexDirection: 'row',

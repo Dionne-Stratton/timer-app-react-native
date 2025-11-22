@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   blocksSection: {
     padding: 16,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   blockTiming: {
     fontSize: 14,
-    color: '#6200ee',
+    color: '#4A7C9E',
     fontWeight: '500',
   },
   emptyContainer: {
@@ -294,10 +294,10 @@ const styles = StyleSheet.create({
   editButton: {
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#6200ee',
+    borderColor: '#4A7C9E',
   },
   editButtonText: {
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   deleteButton: {
     backgroundColor: '#fff',
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     color: '#ff5252',
   },
   playButton: {
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
   },
   playButtonText: {
     color: '#fff',

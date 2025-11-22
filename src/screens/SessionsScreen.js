@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import useStore from '../store';
 import { getSessionTotalDuration, formatTime } from '../types';
 import { sessionSharingService } from '../services/sessionSharing';
+import { colors } from '../theme/colors';
 
 export default function SessionsScreen({ navigation }) {
   const [safeAreaKey, setSafeAreaKey] = React.useState(0);
@@ -189,14 +190,14 @@ export default function SessionsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   listContent: {
     padding: 16,
     paddingBottom: 100,
   },
   sessionItem: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
   sessionName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
     marginBottom: 6,
   },
   sessionMeta: {
@@ -225,16 +226,16 @@ const styles = StyleSheet.create({
   },
   sessionDuration: {
     fontSize: 14,
-    color: '#6200ee',
+    color: colors.primary,
     fontWeight: '500',
   },
   sessionSeparator: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textTertiary,
   },
   sessionBlocks: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
   },
   optionsButton: {
     paddingHorizontal: 12,
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
   },
   optionsButtonText: {
     fontSize: 20,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: 'bold',
   },
   emptyContainer: {
@@ -253,19 +254,19 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textTertiary,
   },
   addButton: {
     position: 'absolute',
     bottom: 20,
     left: 16,
     right: 16,
-    backgroundColor: '#6200ee',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
@@ -276,7 +277,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   addButtonText: {
-    color: '#fff',
+    color: colors.textLight,
     fontSize: 16,
     fontWeight: '600',
   },

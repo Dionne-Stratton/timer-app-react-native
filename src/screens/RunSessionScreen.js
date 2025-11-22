@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
     borderRadius: 2,
   },
   progressText: {
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: 80,
     fontWeight: 'bold',
-    color: '#6200ee',
+    color: '#4A7C9E',
     fontFamily: 'monospace',
   },
   nextBlockContainer: {
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3a3a3a',
   },
   playPauseButton: {
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
   },
   nextButton: {
     backgroundColor: '#3a3a3a',
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   preCountdownText: {
     fontSize: 120,
     fontWeight: 'bold',
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   modalOverlay: {
     flex: 1,
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   completeButton: {
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 32,
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 32,

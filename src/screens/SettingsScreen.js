@@ -93,7 +93,7 @@ export default function SettingsScreen({ navigation }) {
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: '#ddd', true: '#6200ee' }}
+        trackColor={{ false: '#ddd', true: '#4A7C9E' }}
         thumbColor="#fff"
       />
     </View>
@@ -346,8 +346,8 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   optionButtonActive: {
-    backgroundColor: '#6200ee',
-    borderColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
+    borderColor: '#4A7C9E',
   },
   optionButtonText: {
     fontSize: 14,
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   numberButtonText: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   numberButtonTextDisabled: {
     color: '#ccc',
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   actionButton: {
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,

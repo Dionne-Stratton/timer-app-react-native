@@ -394,8 +394,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayButtonActive: {
-    backgroundColor: '#6200ee',
-    borderColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
+    borderColor: '#4A7C9E',
   },
   dayButtonText: {
     fontSize: 14,
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   blocksSection: {
     padding: 16,
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   blockIndex: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6200ee',
+    color: '#4A7C9E',
     marginRight: 8,
     minWidth: 24,
   },
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
   },
   blockTiming: {
     fontSize: 14,
-    color: '#6200ee',
+    color: '#4A7C9E',
     fontWeight: '500',
   },
   blockActions: {
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   duplicateButton: {
     backgroundColor: '#e3f2fd',
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 16,
     right: 16,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',

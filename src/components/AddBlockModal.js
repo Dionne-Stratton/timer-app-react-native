@@ -400,7 +400,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
               <Switch
                 value={saveToLibrary}
                 onValueChange={setSaveToLibrary}
-                trackColor={{ false: '#ddd', true: '#6200ee' }}
+                trackColor={{ false: '#ddd', true: '#4A7C9E' }}
                 thumbColor="#fff"
               />
             </View>
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
     minWidth: 60,
   },
   closeButtonText: {
-    color: '#6200ee',
+    color: '#4A7C9E',
     fontSize: 16,
   },
   headerTitle: {
@@ -460,14 +460,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#6200ee',
+    borderBottomColor: '#4A7C9E',
   },
   tabText: {
     fontSize: 16,
     color: '#666',
   },
   tabTextActive: {
-    color: '#6200ee',
+    color: '#4A7C9E',
     fontWeight: '600',
   },
   libraryContent: {
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   filterButtonActive: {
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
   },
   filterButtonText: {
     fontSize: 14,
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
   },
   libraryItemTiming: {
     fontSize: 14,
-    color: '#6200ee',
+    color: '#4A7C9E',
     fontWeight: '500',
   },
   customContentScroll: {
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   typeButtonActive: {
-    borderColor: '#6200ee',
+    borderColor: '#4A7C9E',
     backgroundColor: '#f3e5f5',
   },
   typeButtonText: {
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   typeButtonTextActive: {
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   modeButton: {
     flex: 1,
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modeButtonActive: {
-    borderColor: '#6200ee',
+    borderColor: '#4A7C9E',
     backgroundColor: '#f3e5f5',
   },
   modeButtonText: {
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   modeButtonTextActive: {
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   durationRow: {
     flexDirection: 'row',
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   addButton: {
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',

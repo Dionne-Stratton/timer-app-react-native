@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   blockTiming: {
     fontSize: 14,
-    color: '#6200ee',
+    color: '#4A7C9E',
     fontWeight: '500',
   },
   deleteButton: {
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 16,
     right: 16,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#4A7C9E',
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',

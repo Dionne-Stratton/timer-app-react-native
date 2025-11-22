@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
@@ -24,7 +25,7 @@ function SessionsStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#6200ee',
+          backgroundColor: '#4A7C9E',
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
@@ -66,9 +67,9 @@ function LibraryStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#6200ee',
+          backgroundColor: colors.primary,
         },
-        headerTintColor: '#fff',
+        headerTintColor: colors.textLight,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -110,13 +111,13 @@ export default function AppNavigator() {
 
               return <Ionicons name={iconName} size={size} color={color} />;
             },
-            tabBarActiveTintColor: '#6200ee',
-            tabBarInactiveTintColor: '#666',
+            tabBarActiveTintColor: colors.primary,
+            tabBarInactiveTintColor: colors.textSecondary,
             headerShown: false,
             tabBarStyle: {
-              backgroundColor: '#fff',
+              backgroundColor: colors.backgroundLight,
               borderTopWidth: 1,
-              borderTopColor: '#e0e0e0',
+              borderTopColor: colors.borderLight,
               paddingBottom: Math.max(insets.bottom, 5),
               paddingTop: 5,
               height: 60 + Math.max(insets.bottom, 0),

@@ -17,6 +17,7 @@ import {
   calculateLongestStreak,
   getThisWeekHistory,
 } from '../utils/history';
+import { colors } from '../theme/colors';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -245,7 +246,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -255,7 +256,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -268,16 +269,16 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 12,
   },
   cardSubtext: {
     fontSize: 12,
-    color: '#999',
+    color: colors.textTertiary,
     marginTop: 8,
   },
   quickStartButton: {
-    backgroundColor: '#6200ee',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -285,17 +286,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   quickStartButtonText: {
-    color: '#fff',
+    color: colors.textLight,
     fontSize: 16,
     fontWeight: '600',
   },
   quickStartSubtext: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   createButton: {
-    backgroundColor: '#6200ee',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -304,13 +305,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   createButtonText: {
-    color: '#fff',
+    color: colors.textLight,
     fontSize: 14,
     fontWeight: '600',
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   streakRow: {
@@ -321,16 +322,16 @@ const styles = StyleSheet.create({
   },
   streakLabel: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
   },
   streakValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   streakHint: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textTertiary,
     fontStyle: 'italic',
     marginBottom: 8,
   },
@@ -343,13 +344,13 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#6200ee',
+    color: '#4A7C9E',
   },
   activityList: {
     gap: 12,
@@ -361,22 +362,22 @@ const styles = StyleSheet.create({
   },
   activityDate: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     minWidth: 60,
   },
   activitySeparator: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textTertiary,
     marginHorizontal: 8,
   },
   activityName: {
     flex: 1,
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
   },
   activityDuration: {
     fontSize: 14,
-    color: '#6200ee',
+    color: '#4A7C9E',
     fontWeight: '500',
   },
 });
