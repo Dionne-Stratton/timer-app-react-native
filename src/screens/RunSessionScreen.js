@@ -24,7 +24,7 @@ import { cueService } from "../services/cues";
 import { notificationService } from "../services/notifications";
 
 export default function RunSessionScreen({ navigation, route }) {
-  const { sessionId } = route.params || {};
+  const { sessionId, returnTo } = route.params || {};
   const colors = useTheme();
   const sessionTemplates = useStore((state) => state.sessionTemplates);
   const settings = useStore((state) => state.settings);
@@ -56,13 +56,33 @@ export default function RunSessionScreen({ navigation, route }) {
   const lastWarningTime = useRef(null);
   const prevIndexRef = useRef(0);
 
+  // Function to navigate back to the previous screen
+  const navigateBack = () => {
+    if (returnTo) {
+      // Navigate to the specified return screen
+      if (returnTo.tab) {
+        // Navigate to a tab (e.g., 'Home')
+        navigation.navigate(returnTo.tab);
+      } else if (returnTo.screen) {
+        // Navigate to a screen within the current stack
+        navigation.navigate(returnTo.screen, returnTo.params || {});
+      } else {
+        // Fallback to goBack if returnTo is invalid
+        navigation.goBack();
+      }
+    } else {
+      // Default behavior: go back
+      navigation.goBack();
+    }
+  };
+
   // Initialize session when screen loads
   useEffect(() => {
     if (sessionId && !runningSession) {
       const success = startSession(sessionId);
       if (!success) {
         Alert.alert("Error", "Failed to start session. Please try again.");
-        navigation.goBack();
+        navigateBack();
       } else {
         prevIndexRef.current = 0;
       }
@@ -273,7 +293,7 @@ export default function RunSessionScreen({ navigation, route }) {
         onPress: () => {
           notificationService.cancelAllNotifications();
           stopSession();
-          navigation.goBack();
+          navigateBack();
         },
       },
     ]);
@@ -283,7 +303,7 @@ export default function RunSessionScreen({ navigation, route }) {
     notificationService.cancelAllNotifications();
     setShowCompleteModal(false);
     stopSession();
-    navigation.goBack();
+    navigateBack();
   };
 
   const handleTogglePause = () => {
@@ -370,7 +390,7 @@ export default function RunSessionScreen({ navigation, route }) {
         <Text style={styles.errorText}>No session loaded</Text>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigateBack()}
         >
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>

@@ -143,7 +143,10 @@ export default function SessionPreviewScreen({ navigation, route }) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.playButton]}
-          onPress={() => navigation.navigate('RunSession', { sessionId })}
+          onPress={() => navigation.navigate('RunSession', { 
+            sessionId,
+            returnTo: { screen: 'SessionPreview', params: { sessionId } },
+          })}
           disabled={!session.items || session.items.length === 0}
         >
           <Text

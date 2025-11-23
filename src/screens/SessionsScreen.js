@@ -59,7 +59,11 @@ export default function SessionsScreen({ navigation }) {
   };
 
   const handleStartSession = (sessionId) => {
-    navigation.navigate('SessionPreview', { sessionId });
+    // Navigate directly to RunSession from Sessions list, return to SessionsList
+    navigation.navigate('RunSession', { 
+      sessionId,
+      returnTo: { screen: 'SessionsList' },
+    });
   };
 
   const handleEditSession = (sessionId) => {

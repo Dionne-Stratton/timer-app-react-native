@@ -5,18 +5,20 @@ A cross-platform mobile timer application built with React Native and Expo. Crea
 ## 📱 Features
 
 ### Core Functionality
-- **Activity Library**: Create and manage reusable activity blocks (activities, rest periods, transitions)
-- **Session Builder**: Assemble blocks into ordered sessions with custom scheduling
+- **Activity Library**: Create and manage reusable activity blocks with categories (Exercise, Study, Work, Household, Creative, and custom categories for Pro users)
+- **Session Builder**: Assemble activities, rest periods, and transitions into ordered sessions with custom scheduling
 - **Timer System**: Run sessions with pre-countdown, block countdown, and completion tracking
 - **Session History**: Track completed sessions with streaks, weekly stats, and recent activity
 - **Quick Start**: One-tap access to today's scheduled session or most recently used session
+- **Search & Filter**: Search sessions by name and filter activities by category
 
 ### User Experience
 - **Audio & Haptic Feedback**: Sound cues and vibration for block transitions and completion
 - **Background Notifications**: Local notifications keep you informed even when the app is in the background
 - **Session Sharing**: Export and import sessions via `.bztimer` files
 - **History Management**: Automatic retention policies (unlimited, 3/6/12 months) with manual controls
-- **Dark Mode Timer**: Dark-themed timer screen optimized for visibility during workouts
+- **Dark Mode Support**: Full dark mode with system preference detection (Light, Dark, or System)
+- **Pro Features**: Custom categories for activities (Free tier uses built-in categories only)
 
 ### Data Management
 - **Fully Offline**: All data stored locally using AsyncStorage
@@ -81,7 +83,8 @@ timer-app-react-native/
 │
 ├── src/
 │   ├── components/       # Reusable components
-│   │   └── AddBlockModal.js
+│   │   ├── AddBlockModal.js      # Modal for adding activities from library
+│   │   └── AddRestTransitionModal.js  # Quick form for rest/transition blocks
 │   │
 │   ├── navigation/       # Navigation configuration
 │   │   └── AppNavigator.js
@@ -107,8 +110,8 @@ timer-app-react-native/
 │   │   └── index.js
 │   │
 │   ├── theme/            # Theme and styling
-│   │   ├── colors.js    # Centralized color palette
-│   │   └── index.js     # Theme configuration
+│   │   ├── themes.js    # Light and dark color palettes
+│   │   └── index.js     # Theme configuration and useTheme hook
 │   │
 │   ├── types/            # Type definitions and utilities
 │   │   └── index.js
@@ -122,30 +125,37 @@ timer-app-react-native/
 
 ## 🎨 Theme System
 
-The app uses a centralized theme system for easy customization. All colors are defined in `src/theme/colors.js`:
+The app uses a centralized theme system for easy customization. All colors are defined in `src/theme/`:
 
 ```javascript
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme';
 
+const colors = useTheme();
 // Use in styles
 backgroundColor: colors.primary
 color: colors.text
 ```
 
-To change the app's color scheme, simply update the values in `src/theme/colors.js`. The primary color is currently set to a muted blue (`#4A7C9E`).
+The theme system supports:
+- **Light and Dark modes** with system preference detection
+- **Block type colors**: Activity (Royal Blue `#3A86FF`), Rest (Teal Green `#43AA8B`), Transition (Orange `#F3722C`)
+- **Centralized color palette** in `src/theme/themes.js` for easy customization
+
+To change the app's color scheme, update the values in `src/theme/themes.js`.
 
 ## 📊 Data Models
 
 ### BlockTemplate
-Reusable activity block with:
-- Label, type (activity/rest/transition), mode (duration/reps)
+Reusable activity block (only "activity" type):
+- Label, category (built-in or custom for Pro users), mode (duration/reps)
 - Timing configuration (duration or reps × seconds per rep)
-- Optional color, icon, and notes
+- Optional notes
+- **Note**: Rest and Transition blocks are created only within sessions, not saved to library
 
 ### SessionTemplate
 Ordered collection of blocks with:
-- Name, blocks array
-- Optional tags and scheduled days of week (for Quick Start)
+- Name, blocks array (activities, rest periods, transitions)
+- Optional scheduled days of week (for Quick Start on Home screen)
 
 ### SessionHistoryEntry
 Completed session record with:
@@ -160,6 +170,10 @@ Global app configuration:
 - Audio/vibration toggles
 - Screen wake lock
 - History retention policy
+- Theme mode (Light, Dark, or System)
+- Pro features toggle (for testing custom categories)
+- Default "Save to Library" preference for custom activities
+- Custom categories (Pro users only)
 
 ## 🔧 Key Technologies
 
@@ -169,7 +183,7 @@ Global app configuration:
 - **Zustand** - Lightweight state management
 - **AsyncStorage** - Local data persistence
 - **expo-notifications** - Local notifications
-- **expo-audio** - Audio playback
+- **expo-audio** - Audio playback (replaced expo-av)
 - **expo-haptics** - Vibration feedback
 - **expo-keep-awake** - Prevent screen sleep
 - **expo-document-picker** - File import
@@ -205,10 +219,11 @@ Bottom Tab Navigator
 1. Navigate to **Sessions** tab
 2. Tap **"+ New Session"**
 3. Enter session name
-4. Optionally set scheduled days for Quick Start
-5. Tap **"+ Add Block"** to add activities
-   - Choose from library or create custom block
-   - Option to save custom blocks to library
+4. Optionally select scheduled days for Quick Start (appears on Home screen)
+5. Add blocks to your session:
+   - **"+ Add Activity"**: Choose from library or create custom activity (option to save to library)
+   - **"+ Add Rest"**: Quick form to add rest period (not saved to library)
+   - **"+ Add Transition"**: Quick form to add transition (not saved to library)
 6. Reorder blocks using up/down arrows
 7. Tap **Save**
 
@@ -222,13 +237,15 @@ Bottom Tab Navigator
 6. Use controls to pause, skip blocks, or stop
 7. Session completes automatically when all blocks finish
 
-### Managing Blocks
+### Managing Activities
 
 1. Navigate to **Library** tab
-2. View all saved activity blocks
-3. Tap **"+ New Activity"** to create new blocks
-4. Tap a block to edit
-5. Swipe or use menu to delete blocks
+2. View all saved activities (filter by category or search by name)
+3. Tap **"+ New Activity"** to create new activity
+4. Select category (built-in or custom for Pro users)
+5. Tap an activity to edit
+6. Use delete button to remove activities
+7. **Note**: Rest and Transition blocks are created only in sessions, not in the library
 
 ### Sharing Sessions
 
@@ -236,6 +253,7 @@ Bottom Tab Navigator
 2. Select **"Share"**
 3. Choose export method (save to device, share via app, etc.)
 4. File is saved as `.bztimer` format
+5. **Note**: Custom categories are preserved for Pro users; Free users will see custom categories mapped to "Uncategorized"
 
 ### Importing Sessions
 
@@ -252,8 +270,13 @@ Accessible from the **Settings** tab:
 - **Warning Time**: Seconds before block end to show warning
 - **Audio & Haptic**: Toggle sound cues and vibration
 - **Screen Wake**: Keep screen awake during sessions
+- **Appearance**: Theme mode (Light, Dark, or System preference)
 - **History Retention**: Auto-delete history older than 3/6/12 months (or unlimited)
 - **Manage History**: Delete all history manually
+- **Pro Features**: Toggle to enable custom categories (for testing)
+- **Default Save to Library**: Toggle for "Save to Library" default in custom activity form
+- **Manage Activities**: Delete all activities from library
+- **Manage Sessions**: Delete all sessions
 
 ## 🔄 State Management
 

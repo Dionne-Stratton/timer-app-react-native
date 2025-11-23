@@ -55,30 +55,10 @@ export default function HomeScreen() {
     
     // Scenario B: Multiple scheduled sessions
     if (scheduledToday.length > 1) {
-      // Get today's history entries
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
-      
-      const todayHistory = sessionHistory.filter(entry => {
-        const entryDate = new Date(entry.completedAt).toISOString().split('T')[0];
-        return entryDate === todayStr;
-      });
-      
-      const completedSessionIds = new Set(todayHistory.map(h => h.sessionId).filter(Boolean));
-      
-      // Remove completed sessions
-      const uncompletedScheduled = scheduledToday.filter(s => !completedSessionIds.has(s.id));
-      
-      if (uncompletedScheduled.length > 0) {
-        // Choose deterministically (alphabetical by name)
-        uncompletedScheduled.sort((a, b) => a.name.localeCompare(b.name));
-        return { session: uncompletedScheduled[0], reason: 'scheduled' };
-      } else {
-        // All completed, choose deterministically
-        scheduledToday.sort((a, b) => a.name.localeCompare(b.name));
-        return { session: scheduledToday[0], reason: 'scheduled' };
-      }
+      // Choose deterministically (alphabetical by name)
+      // Always show a session, even if completed
+      scheduledToday.sort((a, b) => a.name.localeCompare(b.name));
+      return { session: scheduledToday[0], reason: 'scheduled' };
     }
     
     // Scenario C: No scheduled sessions - fall back to most recently completed
@@ -108,10 +88,13 @@ export default function HomeScreen() {
   const handleQuickStart = () => {
     if (!quickStartSession) return;
     
-    // Switch to Sessions tab and navigate to RunSessionScreen
+    // Navigate directly to RunSession, with returnTo to come back to Home
     navigation.navigate('Sessions', {
       screen: 'RunSession',
-      params: { sessionId: quickStartSession.session.id },
+      params: { 
+        sessionId: quickStartSession.session.id,
+        returnTo: { tab: 'Home' },
+      },
     });
   };
   
