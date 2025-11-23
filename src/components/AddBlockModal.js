@@ -34,7 +34,10 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
   const [customPerRepSeconds, setCustomPerRepSeconds] = useState(5);
   const [saveToLibrary, setSaveToLibrary] = useState(false);
 
-  const filteredTemplates = blockTemplates.filter((template) => {
+  // Filter to only activities (rest/transition are not in library)
+  const activities = blockTemplates.filter(template => template.type === BlockType.ACTIVITY);
+  
+  const filteredTemplates = activities.filter((template) => {
     const matchesSearch =
       !searchQuery ||
       template.label.toLowerCase().includes(searchQuery.toLowerCase());
@@ -48,6 +51,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
       templateId: template.id,
       label: template.label,
       type: template.type,
+      category: template.category || null, // Include category from template
       mode: template.mode,
       ...(template.mode === BlockMode.DURATION
         ? { durationSeconds: template.durationSeconds }

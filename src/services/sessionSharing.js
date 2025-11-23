@@ -3,7 +3,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Alert } from 'react-native';
 import { generateId } from '../utils/id';
-import { getSessionTotalDuration, formatTime } from '../types';
+import { getSessionTotalDuration, formatTime, BUILT_IN_CATEGORIES } from '../types';
+import useStore from '../store';
 
 /**
  * Session sharing service for export/import
@@ -195,14 +196,53 @@ export const sessionSharingService = {
             {
               text: 'Import',
               onPress: () => {
+                const settings = useStore.getState().settings;
+                const updateSettings = useStore.getState().updateSettings;
+                const isProUser = settings.isProUser || false;
+                const customCategories = settings.customCategories || [];
+                
+                // Process categories for each block
+                const processedItems = session.items.map((item) => {
+                  const processedItem = {
+                    ...item,
+                    id: generateId(),
+                  };
+                  
+                  // Handle category field (only for activities)
+                  if (item.category && item.type === 'activity') {
+                    const category = item.category;
+                    
+                    if (BUILT_IN_CATEGORIES.includes(category)) {
+                      // Built-in category - keep it
+                      processedItem.category = category;
+                    } else {
+                      // Custom category
+                      if (isProUser) {
+                        // Pro: auto-add to customCategories if not already there
+                        if (!customCategories.includes(category)) {
+                          updateSettings({
+                            customCategories: [...customCategories, category],
+                          });
+                        }
+                        processedItem.category = category;
+                      } else {
+                        // Free: map to "Uncategorized"
+                        processedItem.category = null; // Will display as "Uncategorized"
+                      }
+                    }
+                  } else {
+                    // Rest/Transition or no category - set to null
+                    processedItem.category = null;
+                  }
+                  
+                  return processedItem;
+                });
+                
                 // Assign new ID to avoid conflicts
                 const importedSession = {
                   ...session,
                   id: generateId(),
-                  items: session.items.map((item) => ({
-                    ...item,
-                    id: generateId(),
-                  })),
+                  items: processedItems,
                 };
                 resolve(importedSession);
               },

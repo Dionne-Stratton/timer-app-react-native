@@ -8,19 +8,41 @@ import {
   Alert,
   RefreshControl,
   TextInput,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useStore from '../store';
-import { BlockType, getBlockTimingSummary, getBlockTypeColor } from '../types';
+import { BlockType, getBlockTimingSummary, getBlockTypeColor, BUILT_IN_CATEGORIES } from '../types';
 import { useTheme } from '../theme';
 
 export default function BlockLibraryScreen({ navigation }) {
   const colors = useTheme();
   const blockTemplates = useStore((state) => state.blockTemplates);
+  const settings = useStore((state) => state.settings);
   const deleteBlockTemplate = useStore((state) => state.deleteBlockTemplate);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState(null); // null = all types
+  const [selectedCategory, setSelectedCategory] = useState(null); // null = all categories
+  
+  // Filter to only activities (rest/transition are not in library)
+  const activities = useMemo(() => {
+    return blockTemplates.filter(block => block.type === BlockType.ACTIVITY);
+  }, [blockTemplates]);
+  
+  // Get all available categories (built-in + custom)
+  const allCategories = useMemo(() => {
+    const categories = new Set(BUILT_IN_CATEGORIES);
+    if (settings.isProUser) {
+      settings.customCategories?.forEach(cat => categories.add(cat));
+    }
+    // Also include categories from existing activities
+    activities.forEach(activity => {
+      if (activity.category) {
+        categories.add(activity.category);
+      }
+    });
+    return Array.from(categories).sort();
+  }, [activities, settings.customCategories, settings.isProUser]);
 
   useEffect(() => {
     // Load data on mount
@@ -53,12 +75,15 @@ export default function BlockLibraryScreen({ navigation }) {
 
   const styles = getStyles(colors);
 
-  // Filter blocks based on search query and selected type
+  // Filter activities based on search query and selected category
   const filteredBlocks = useMemo(() => {
-    return blockTemplates.filter((block) => {
-      // Filter by type
-      if (selectedType !== null && block.type !== selectedType) {
-        return false;
+    return activities.filter((block) => {
+      // Filter by category
+      if (selectedCategory !== null) {
+        const blockCategory = block.category || 'Uncategorized';
+        if (blockCategory !== selectedCategory) {
+          return false;
+        }
       }
       
       // Filter by search query (case-insensitive)
@@ -69,10 +94,11 @@ export default function BlockLibraryScreen({ navigation }) {
       
       return true;
     });
-  }, [blockTemplates, searchQuery, selectedType]);
+  }, [activities, searchQuery, selectedCategory]);
 
   const renderBlockItem = ({ item }) => {
     const blockTypeColor = getBlockTypeColor(item.type, colors);
+    const category = item.category || 'Uncategorized';
     
     return (
       <TouchableOpacity
@@ -83,9 +109,7 @@ export default function BlockLibraryScreen({ navigation }) {
         <View style={styles.blockContent}>
           <Text style={styles.blockLabel}>{item.label}</Text>
           <View style={styles.blockMeta}>
-            <Text style={[styles.blockType, { color: blockTypeColor }]}>
-              {typeLabels[item.type] || item.type}
-            </Text>
+            <Text style={styles.blockCategory}>{category}</Text>
             <Text style={styles.blockTiming}>{getBlockTimingSummary(item)}</Text>
           </View>
         </View>
@@ -98,12 +122,6 @@ export default function BlockLibraryScreen({ navigation }) {
         </TouchableOpacity>
       </TouchableOpacity>
     );
-  };
-
-  const typeLabels = {
-    [BlockType.ACTIVITY]: 'Activity',
-    [BlockType.REST]: 'Rest',
-    [BlockType.TRANSITION]: 'Transition',
   };
 
   return (
@@ -121,43 +139,49 @@ export default function BlockLibraryScreen({ navigation }) {
         />
       </View>
 
-      {/* Type Filter Buttons */}
-      <View style={styles.filterContainer}>
+      {/* Category Filter Buttons */}
+      <View style={styles.filterWrapper}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContainer}
+        >
         <TouchableOpacity
           style={[
             styles.filterButton,
-            selectedType === null && styles.filterButtonActive,
+            selectedCategory === null && styles.filterButtonActive,
           ]}
-          onPress={() => setSelectedType(null)}
+          onPress={() => setSelectedCategory(null)}
         >
           <Text
             style={[
               styles.filterButtonText,
-              selectedType === null && styles.filterButtonTextActive,
+              selectedCategory === null && styles.filterButtonTextActive,
             ]}
           >
             All
           </Text>
         </TouchableOpacity>
-        {Object.entries(BlockType).map(([key, value]) => (
+        {allCategories.map((category) => (
           <TouchableOpacity
-            key={value}
+            key={category}
             style={[
               styles.filterButton,
-              selectedType === value && styles.filterButtonActive,
+              selectedCategory === category && styles.filterButtonActive,
             ]}
-            onPress={() => setSelectedType(value)}
+            onPress={() => setSelectedCategory(category)}
           >
             <Text
               style={[
                 styles.filterButtonText,
-                selectedType === value && styles.filterButtonTextActive,
+                selectedCategory === category && styles.filterButtonTextActive,
               ]}
             >
-              {typeLabels[value]}
+              {category}
             </Text>
           </TouchableOpacity>
         ))}
+        </ScrollView>
       </View>
 
       <FlatList
@@ -168,12 +192,12 @@ export default function BlockLibraryScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
-              {searchQuery || selectedType !== null
+              {searchQuery || selectedCategory !== null
                 ? 'No activities match your filters'
                 : 'No activities yet'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {searchQuery || selectedType !== null
+              {searchQuery || selectedCategory !== null
                 ? 'Try adjusting your search or filters'
                 : 'Tap "+ New Activity" to create one'}
             </Text>
@@ -213,19 +237,26 @@ const getStyles = (colors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  filterWrapper: {
+    paddingVertical: 8,
+    maxHeight: 50,
+  },
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingBottom: 8,
     gap: 8,
+    alignItems: 'center',
+    height: 40,
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     backgroundColor: colors.cardBackground,
     borderWidth: 1,
     borderColor: colors.border,
+    height: 32,
+    justifyContent: 'center',
   },
   filterButtonActive: {
     backgroundColor: colors.primary,
@@ -274,10 +305,10 @@ const getStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  blockType: {
+  blockCategory: {
     fontSize: 14,
     color: colors.textSecondary,
-    textTransform: 'capitalize',
+    fontWeight: '500',
   },
   blockTiming: {
     fontSize: 14,

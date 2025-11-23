@@ -22,6 +22,10 @@ export default function SettingsScreen({ navigation }) {
   const updateSettings = useStore((state) => state.updateSettings);
   const addSessionTemplate = useStore((state) => state.addSessionTemplate);
   const deleteAllHistory = useStore((state) => state.deleteAllHistory);
+  const deleteAllBlockTemplates = useStore((state) => state.deleteAllBlockTemplates);
+  const deleteAllSessionTemplates = useStore((state) => state.deleteAllSessionTemplates);
+  const blockTemplates = useStore((state) => state.blockTemplates);
+  const sessionTemplates = useStore((state) => state.sessionTemplates);
   
   // Force recalculation when screen comes back into focus (after modal closes)
   useFocusEffect(
@@ -75,6 +79,54 @@ export default function SettingsScreen({ navigation }) {
           onPress: async () => {
             await deleteAllHistory();
             Alert.alert('Success', 'All history has been deleted.');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAllBlocks = () => {
+    const count = blockTemplates.length;
+    if (count === 0) {
+      Alert.alert('No Activities', 'There are no activities to delete.');
+      return;
+    }
+    
+    Alert.alert(
+      'Delete All Activities',
+      `This will permanently delete all ${count} activity${count !== 1 ? 'ies' : ''} from your library. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteAllBlockTemplates();
+            Alert.alert('Success', `All ${count} activit${count !== 1 ? 'ies have' : 'y has'} been deleted.`);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAllSessions = () => {
+    const count = sessionTemplates.length;
+    if (count === 0) {
+      Alert.alert('No Sessions', 'There are no sessions to delete.');
+      return;
+    }
+    
+    Alert.alert(
+      'Delete All Sessions',
+      `This will permanently delete all ${count} session${count !== 1 ? 's' : ''}. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteAllSessionTemplates();
+            Alert.alert('Success', `All ${count} session${count !== 1 ? 's have' : ' has'} been deleted.`);
           },
         },
       ]
@@ -256,6 +308,23 @@ export default function SettingsScreen({ navigation }) {
         </View>
       ))}
 
+      {/* Pro Features Section */}
+      {renderSettingSection('Pro Features', (
+        <View>
+          {renderToggleSetting(
+            'Enable Pro Features',
+            'Toggle to test Pro features (custom categories, etc.)',
+            settings.isProUser || false,
+            () => handleToggle('isProUser')
+          )}
+          <Text style={styles.settingDescription}>
+            {settings.isProUser 
+              ? 'Pro features enabled: You can create custom categories and import sessions with custom categories.'
+              : 'Free tier: Only built-in categories available. Custom categories from imports will be mapped to "Uncategorized".'}
+          </Text>
+        </View>
+      ))}
+
       {/* Import/Export Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Session Sharing</Text>
@@ -303,6 +372,40 @@ export default function SettingsScreen({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.actionDescription}>
           Permanently delete all session history. This will reset your streaks and statistics.
+        </Text>
+      </View>
+
+      {/* Delete All Activities Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Manage Activities</Text>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.deleteButton]}
+          onPress={handleDeleteAllBlocks}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.actionButtonText, styles.deleteButtonText]}>
+            Delete All Activities ({blockTemplates.length})
+          </Text>
+        </TouchableOpacity>
+        <Text style={styles.actionDescription}>
+          Permanently delete all activities from your library. This cannot be undone.
+        </Text>
+      </View>
+
+      {/* Delete All Sessions Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Manage Sessions</Text>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.deleteButton]}
+          onPress={handleDeleteAllSessions}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.actionButtonText, styles.deleteButtonText]}>
+            Delete All Sessions ({sessionTemplates.length})
+          </Text>
+        </TouchableOpacity>
+        <Text style={styles.actionDescription}>
+          Permanently delete all sessions. This cannot be undone.
         </Text>
       </View>
       </ScrollView>

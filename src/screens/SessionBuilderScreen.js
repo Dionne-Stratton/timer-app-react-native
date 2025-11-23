@@ -15,10 +15,12 @@ import { BlockType, getBlockTimingSummary, getSessionTotalDuration, formatTime, 
 import { generateId } from '../utils/id';
 import { getISOWeekday } from '../utils/history';
 import AddBlockModal from '../components/AddBlockModal';
+import AddRestTransitionModal from '../components/AddRestTransitionModal';
 import { useTheme } from '../theme';
 
 export default function SessionBuilderScreen({ navigation, route }) {
   const { sessionId } = route.params || {};
+  const colors = useTheme();
   const sessionTemplates = useStore((state) => state.sessionTemplates);
   const addSessionTemplate = useStore((state) => state.addSessionTemplate);
   const updateSessionTemplate = useStore((state) => state.updateSessionTemplate);
@@ -40,6 +42,8 @@ export default function SessionBuilderScreen({ navigation, route }) {
     existingSession?.scheduledDaysOfWeek || []
   );
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showRestModal, setShowRestModal] = useState(false);
+  const [showTransitionModal, setShowTransitionModal] = useState(false);
 
   // Day names for display (ISO: 1=Monday ... 7=Sunday)
   const weekdays = [
@@ -328,21 +332,57 @@ export default function SessionBuilderScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
-      {/* Add Block Button */}
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => setShowAddModal(true)}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.addButtonText}>+ Add Block</Text>
-      </TouchableOpacity>
+      {/* Add Block Buttons */}
+      <View style={styles.addButtonsContainer}>
+        <TouchableOpacity
+          style={[styles.addButton, styles.addActivityButton]}
+          onPress={() => setShowAddModal(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.addButtonText}>+ Add Activity</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.addButton, styles.addRestButton]}
+          onPress={() => setShowRestModal(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.addButtonText}>+ Add Rest</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.addButton, styles.addTransitionButton]}
+          onPress={() => setShowTransitionModal(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.addButtonText}>+ Add Transition</Text>
+        </TouchableOpacity>
+      </View>
 
-      {/* Add Block Modal */}
+      {/* Add Activity Modal (Library) */}
       {showAddModal && (
         <AddBlockModal
           visible={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAddBlock={handleAddBlock}
+        />
+      )}
+      
+      {/* Add Rest Modal */}
+      {showRestModal && (
+        <AddRestTransitionModal
+          visible={showRestModal}
+          type={BlockType.REST}
+          onClose={() => setShowRestModal(false)}
+          onAdd={handleAddBlock}
+        />
+      )}
+      
+      {/* Add Transition Modal */}
+      {showTransitionModal && (
+        <AddRestTransitionModal
+          visible={showTransitionModal}
+          type={BlockType.TRANSITION}
+          onClose={() => setShowTransitionModal(false)}
+          onAdd={handleAddBlock}
         />
       )}
     </View>
@@ -570,14 +610,18 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 14,
     color: colors.textTertiary,
   },
-  addButton: {
+  addButtonsContainer: {
     position: 'absolute',
     bottom: 20,
     left: 16,
     right: 16,
-    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  addButton: {
+    flex: 1,
     borderRadius: 8,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -585,9 +629,18 @@ const getStyles = (colors) => StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  addActivityButton: {
+    backgroundColor: colors.primary,
+  },
+  addRestButton: {
+    backgroundColor: getBlockTypeColor(BlockType.REST, colors),
+  },
+  addTransitionButton: {
+    backgroundColor: getBlockTypeColor(BlockType.TRANSITION, colors),
+  },
   addButtonText: {
     color: colors.textLight,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   saveButton: {

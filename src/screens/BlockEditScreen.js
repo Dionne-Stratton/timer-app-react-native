@@ -8,9 +8,10 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import useStore from '../store';
-import { BlockType, BlockMode, getBlockTypeColor } from '../types';
+import { BlockType, BlockMode, getBlockTypeColor, BUILT_IN_CATEGORIES } from '../types';
 import { generateId } from '../utils/id';
 import { useTheme } from '../theme';
 
@@ -18,8 +19,10 @@ export default function BlockEditScreen({ navigation, route }) {
   const { blockId } = route.params || {};
   const colors = useTheme();
   const blockTemplates = useStore((state) => state.blockTemplates);
+  const settings = useStore((state) => state.settings);
   const addBlockTemplate = useStore((state) => state.addBlockTemplate);
   const updateBlockTemplate = useStore((state) => state.updateBlockTemplate);
+  const updateSettings = useStore((state) => state.updateSettings);
 
   const isEditing = blockId !== null && blockId !== undefined;
   const existingBlock = isEditing
@@ -27,8 +30,19 @@ export default function BlockEditScreen({ navigation, route }) {
     : null;
 
   const [label, setLabel] = useState(existingBlock?.label || '');
-  const [type, setType] = useState(existingBlock?.type || BlockType.ACTIVITY);
+  const [category, setCategory] = useState(existingBlock?.category || 'Uncategorized');
   const [mode, setMode] = useState(existingBlock?.mode || BlockMode.DURATION);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  
+  // Get all available categories
+  const allCategories = React.useMemo(() => {
+    const categories = [...BUILT_IN_CATEGORIES];
+    if (settings.isProUser && settings.customCategories) {
+      categories.push(...settings.customCategories);
+    }
+    return categories;
+  }, [settings.customCategories, settings.isProUser]);
   const [minutes, setMinutes] = useState(
     existingBlock?.mode === BlockMode.DURATION
       ? Math.floor((existingBlock.durationSeconds || 0) / 60)
@@ -54,7 +68,7 @@ export default function BlockEditScreen({ navigation, route }) {
         </TouchableOpacity>
       ),
     });
-  }, [label, type, mode, minutes, seconds, reps, perRepSeconds, notes, styles]);
+  }, [label, category, mode, minutes, seconds, reps, perRepSeconds, notes, styles]);
 
   const handleSave = async () => {
     // Validation
@@ -89,7 +103,8 @@ export default function BlockEditScreen({ navigation, route }) {
 
     const blockData = {
       label: label.trim(),
-      type,
+      type: BlockType.ACTIVITY, // Always activity for templates
+      category: category === 'Uncategorized' ? null : category,
       mode,
       ...(mode === BlockMode.DURATION
         ? { durationSeconds }
@@ -110,28 +125,34 @@ export default function BlockEditScreen({ navigation, route }) {
     }
   };
 
-  const renderTypeButton = (blockType, label) => {
-    const blockTypeColor = getBlockTypeColor(blockType, colors);
-    const isActive = type === blockType;
+  const handleAddCategory = () => {
+    if (!settings.isProUser) {
+      Alert.alert('Pro Feature', 'Custom categories are only available for Pro users. Enable Pro features in Settings to unlock this.');
+      return;
+    }
+    setShowAddCategoryModal(true);
+  };
+
+  const handleSaveCategory = () => {
+    if (!newCategoryName.trim()) {
+      Alert.alert('Validation Error', 'Please enter a category name.');
+      return;
+    }
+    const trimmedName = newCategoryName.trim();
+    if (BUILT_IN_CATEGORIES.includes(trimmedName)) {
+      Alert.alert('Validation Error', 'This category already exists as a built-in category.');
+      return;
+    }
+    if (settings.customCategories?.includes(trimmedName)) {
+      Alert.alert('Validation Error', 'This category already exists.');
+      return;
+    }
     
-    return (
-      <TouchableOpacity
-        style={[
-          styles.typeButton,
-          isActive && { backgroundColor: blockTypeColor, borderColor: blockTypeColor },
-        ]}
-        onPress={() => setType(blockType)}
-      >
-        <Text
-          style={[
-            styles.typeButtonText,
-            isActive && { color: colors.textLight },
-          ]}
-        >
-          {label}
-        </Text>
-      </TouchableOpacity>
-    );
+    const updatedCategories = [...(settings.customCategories || []), trimmedName];
+    updateSettings({ customCategories: updatedCategories });
+    setCategory(trimmedName);
+    setNewCategoryName('');
+    setShowAddCategoryModal(false);
   };
 
   const renderModeButton = (blockMode, label) => (
@@ -168,14 +189,48 @@ export default function BlockEditScreen({ navigation, route }) {
           />
         </View>
 
-        {/* Type Selection */}
+        {/* Category Selection */}
         <View style={styles.section}>
-          <Text style={styles.label}>Type *</Text>
-          <View style={styles.typeButtonContainer}>
-            {renderTypeButton(BlockType.ACTIVITY, 'Activity')}
-            {renderTypeButton(BlockType.REST, 'Rest')}
-            {renderTypeButton(BlockType.TRANSITION, 'Transition')}
+          <Text style={styles.label}>Category *</Text>
+          <View style={styles.categoryContainer}>
+            {allCategories.map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                style={[
+                  styles.categoryChip,
+                  category === cat && styles.categoryChipActive,
+                ]}
+                onPress={() => setCategory(cat)}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    category === cat && styles.categoryChipTextActive,
+                  ]}
+                >
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
+          {settings.isProUser && (
+            <TouchableOpacity
+              style={styles.addCategoryButton}
+              onPress={handleAddCategory}
+            >
+              <Text style={styles.addCategoryButtonText}>+ Add Category</Text>
+            </TouchableOpacity>
+          )}
+          {!settings.isProUser && (
+            <TouchableOpacity
+              style={[styles.addCategoryButton, styles.addCategoryButtonDisabled]}
+              disabled
+            >
+              <Text style={[styles.addCategoryButtonText, styles.addCategoryButtonTextDisabled]}>
+                🔒 + Add Category (Pro)
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Mode Selection */}
@@ -263,6 +318,45 @@ export default function BlockEditScreen({ navigation, route }) {
           />
         </View>
       </View>
+      
+      {/* Add Category Modal */}
+      <Modal
+        visible={showAddCategoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddCategoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Custom Category</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newCategoryName}
+              onChangeText={setNewCategoryName}
+              placeholder="Category name"
+              placeholderTextColor={colors.textTertiary}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => {
+                  setShowAddCategoryModal(false);
+                  setNewCategoryName('');
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSave]}
+                onPress={handleSaveCategory}
+              >
+                <Text style={[styles.modalButtonText, styles.modalButtonTextSave]}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -302,31 +396,107 @@ const getStyles = (colors) => StyleSheet.create({
     minHeight: 100,
     paddingTop: 12,
   },
-  typeButtonContainer: {
+  categoryContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 12,
   },
-  typeButton: {
-    flex: 1,
-    paddingVertical: 12,
+  categoryChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  categoryChipTextActive: {
+    color: colors.textLight,
+    fontWeight: '600',
+  },
+  addCategoryButton: {
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
     backgroundColor: colors.cardBackground,
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
   },
-  typeButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.purpleLight,
+  addCategoryButtonDisabled: {
+    opacity: 0.5,
   },
-  typeButtonText: {
+  addCategoryButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  typeButtonTextActive: {
     color: colors.primary,
+  },
+  addCategoryButtonTextDisabled: {
+    color: colors.textTertiary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    padding: 24,
+    width: '80%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  modalInput: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalButtonSave: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalButtonTextSave: {
+    color: colors.textLight,
   },
   modeButtonContainer: {
     flexDirection: 'row',

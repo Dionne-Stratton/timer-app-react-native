@@ -13,11 +13,24 @@ export const BlockMode = {
 };
 
 /**
+ * Built-in activity categories (always available)
+ */
+export const BUILT_IN_CATEGORIES = [
+  'Exercise',
+  'Study',
+  'Work',
+  'Household',
+  'Creative',
+  'Uncategorized',
+];
+
+/**
  * @typedef {Object} BlockTemplate
  * @property {string} id - Unique identifier
  * @property {string} label - Display name (e.g., "Bicep curls")
- * @property {string} type - One of BlockType enum
+ * @property {string} type - Always "activity" (rest/transition are not templates)
  * @property {string} mode - One of BlockMode enum
+ * @property {string|null} category - Category name (built-in or custom, null for uncategorized)
  * @property {number} [durationSeconds] - Required if mode is "duration"
  * @property {number} [reps] - Required if mode is "reps"
  * @property {number} [perRepSeconds] - Required if mode is "reps"
@@ -35,7 +48,8 @@ export const BlockMode = {
  * @property {string} id - Unique identifier for this instance
  * @property {string|null} [templateId] - ID of BlockTemplate it came from (null if custom)
  * @property {string} label - Display name
- * @property {string} type - One of BlockType enum
+ * @property {string} type - One of BlockType enum ("activity", "rest", or "transition")
+ * @property {string|null} category - Category name (for activities only, null for rest/transition)
  * @property {string} mode - One of BlockMode enum
  * @property {number} [durationSeconds] - Required if mode is "duration"
  * @property {number} [reps] - Required if mode is "reps"

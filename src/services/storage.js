@@ -19,6 +19,8 @@ const DEFAULT_SETTINGS = {
   keepScreenAwakeDuringSession: true,
   historyRetention: 'unlimited',
   themeMode: 'system', // 'light', 'dark', or 'system'
+  customCategories: [], // Pro feature - custom category names
+  isProUser: false, // Toggle for testing Pro features
 };
 
 /**

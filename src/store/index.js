@@ -20,6 +20,8 @@ const useStore = create((set, get) => ({
     keepScreenAwakeDuringSession: true,
     historyRetention: 'unlimited',
     themeMode: 'system',
+    customCategories: [],
+    isProUser: false,
   },
 
   // Running session state
@@ -75,6 +77,11 @@ const useStore = create((set, get) => ({
     await storageService.saveBlockTemplates(updated);
   },
 
+  deleteAllBlockTemplates: async () => {
+    set({ blockTemplates: [] });
+    await storageService.saveBlockTemplates([]);
+  },
+
   // Session Templates actions
   addSessionTemplate: async (session) => {
     const newSession = {
@@ -100,6 +107,11 @@ const useStore = create((set, get) => ({
     const updated = get().sessionTemplates.filter((s) => s.id !== id);
     set({ sessionTemplates: updated });
     await storageService.saveSessionTemplates(updated);
+  },
+
+  deleteAllSessionTemplates: async () => {
+    set({ sessionTemplates: [] });
+    await storageService.saveSessionTemplates([]);
   },
 
   duplicateSessionTemplate: async (id) => {
