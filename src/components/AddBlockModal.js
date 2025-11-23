@@ -12,17 +12,18 @@ import {
   ScrollView,
 } from 'react-native';
 import useStore from '../store';
-import { BlockType, BlockMode, getBlockTimingSummary, getBlockTypeColor } from '../types';
+import { BlockType, BlockMode, getBlockTimingSummary, getBlockTypeColor, BUILT_IN_CATEGORIES } from '../types';
 import { generateId } from '../utils/id';
 import { useTheme } from '../theme';
 
 export default function AddBlockModal({ visible, onClose, onAddBlock }) {
   const colors = useTheme();
   const blockTemplates = useStore((state) => state.blockTemplates);
+  const settings = useStore((state) => state.settings);
   const addBlockTemplate = useStore((state) => state.addBlockTemplate);
   const [tab, setTab] = useState('library'); // 'library' or 'custom'
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState(null);
+  const [filterCategory, setFilterCategory] = useState(null);
 
   // Custom block form state
   const [customLabel, setCustomLabel] = useState('');
@@ -37,12 +38,33 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
   // Filter to only activities (rest/transition are not in library)
   const activities = blockTemplates.filter(template => template.type === BlockType.ACTIVITY);
   
+  // Get all available categories (built-in + custom)
+  const allCategories = React.useMemo(() => {
+    const categories = new Set(BUILT_IN_CATEGORIES);
+    if (settings.isProUser) {
+      settings.customCategories?.forEach(cat => categories.add(cat));
+    }
+    // Also include categories from existing activities
+    activities.forEach(activity => {
+      if (activity.category) {
+        categories.add(activity.category);
+      }
+    });
+    return Array.from(categories).sort();
+  }, [activities, settings.customCategories, settings.isProUser]);
+  
   const filteredTemplates = activities.filter((template) => {
     const matchesSearch =
       !searchQuery ||
       template.label.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = !filterType || template.type === filterType;
-    return matchesSearch && matchesType;
+    // Filter by category
+    if (filterCategory !== null) {
+      const templateCategory = template.category || 'Uncategorized';
+      if (templateCategory !== filterCategory) {
+        return false;
+      }
+    }
+    return matchesSearch;
   });
 
   const handleAddFromLibrary = (template) => {
@@ -139,12 +161,8 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
   };
 
   const renderLibraryItem = ({ item }) => {
-    const typeLabels = {
-      [BlockType.ACTIVITY]: 'Activity',
-      [BlockType.REST]: 'Rest',
-      [BlockType.TRANSITION]: 'Transition',
-    };
     const blockTypeColor = getBlockTypeColor(item.type, colors);
+    const category = item.category || 'Uncategorized';
 
     return (
       <TouchableOpacity
@@ -154,9 +172,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
         <View style={styles.libraryItemContent}>
           <Text style={styles.libraryItemLabel}>{item.label}</Text>
           <View style={styles.libraryItemMeta}>
-            <Text style={[styles.libraryItemType, { color: blockTypeColor }]}>
-              {typeLabels[item.type] || item.type}
-            </Text>
+            <Text style={styles.libraryItemCategory}>{category}</Text>
             <Text style={styles.libraryItemTiming}>
               {getBlockTimingSummary(item)}
             </Text>
@@ -213,52 +229,59 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search activities..."
+                placeholderTextColor={colors.textTertiary}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholderTextColor="#999"
               />
             </View>
-            <View style={styles.filterContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.filterButton,
-                  filterType === null && styles.filterButtonActive,
-                ]}
-                onPress={() => setFilterType(null)}
+            <View style={styles.filterWrapper}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterContainer}
               >
-                <Text
-                  style={[
-                    styles.filterButtonText,
-                    filterType === null && styles.filterButtonTextActive,
-                  ]}
-                >
-                  All
-                </Text>
-              </TouchableOpacity>
-              {Object.values(BlockType).map((type) => (
                 <TouchableOpacity
-                  key={type}
                   style={[
                     styles.filterButton,
-                    filterType === type && styles.filterButtonActive,
+                    filterCategory === null && styles.filterButtonActive,
                   ]}
-                  onPress={() => setFilterType(type)}
+                  onPress={() => setFilterCategory(null)}
                 >
                   <Text
                     style={[
                       styles.filterButtonText,
-                      filterType === type && styles.filterButtonTextActive,
+                      filterCategory === null && styles.filterButtonTextActive,
                     ]}
                   >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    All
                   </Text>
                 </TouchableOpacity>
-              ))}
+                {allCategories.map((category) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={[
+                      styles.filterButton,
+                      filterCategory === category && styles.filterButtonActive,
+                    ]}
+                    onPress={() => setFilterCategory(category)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        filterCategory === category && styles.filterButtonTextActive,
+                      ]}
+                    >
+                      {category}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
             <FlatList
               data={filteredTemplates}
               renderItem={renderLibraryItem}
               keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No activities found</Text>
@@ -280,7 +303,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
               value={customLabel}
               onChangeText={setCustomLabel}
               placeholder="e.g., Custom exercise"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textTertiary}
             />
 
             <Text style={styles.label}>Type *</Text>
@@ -414,8 +437,8 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
               <Switch
                 value={saveToLibrary}
                 onValueChange={setSaveToLibrary}
-                trackColor={{ false: '#ddd', true: '#4A7C9E' }}
-                thumbColor="#fff"
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.textLight}
               />
             </View>
 
@@ -435,7 +458,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
 const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -443,28 +466,28 @@ const getStyles = (colors) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: colors.borderLight,
   },
   closeButton: {
     padding: 8,
     minWidth: 60,
   },
   closeButtonText: {
-    color: '#4A7C9E',
+    color: colors.primary,
     fontSize: 16,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: colors.borderLight,
   },
   tab: {
     flex: 1,
@@ -474,14 +497,14 @@ const getStyles = (colors) => StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#4A7C9E',
+    borderBottomColor: colors.primary,
   },
   tabText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
   },
   tabTextActive: {
-    color: '#4A7C9E',
+    color: colors.primary,
     fontWeight: '600',
   },
   libraryContent: {
@@ -489,37 +512,55 @@ const getStyles = (colors) => StyleSheet.create({
   },
   searchContainer: {
     padding: 16,
-    backgroundColor: '#fff',
+    paddingBottom: 8,
+    backgroundColor: colors.background,
   },
   searchInput: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.cardBackground,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterWrapper: {
+    paddingVertical: 8,
+    minHeight: 56,
   },
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
     gap: 8,
+    alignItems: 'center',
+    minHeight: 40,
   },
   filterButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 60,
   },
   filterButtonActive: {
-    backgroundColor: '#4A7C9E',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterButtonText: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
   filterButtonTextActive: {
-    color: '#fff',
+    color: colors.textLight,
     fontWeight: '600',
+  },
+  listContent: {
+    paddingTop: 8,
   },
   libraryItem: {
     backgroundColor: colors.cardBackground,
@@ -541,13 +582,14 @@ const getStyles = (colors) => StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  libraryItemType: {
+  libraryItemCategory: {
     fontSize: 14,
     color: colors.textSecondary,
+    fontWeight: '500',
   },
   libraryItemTiming: {
     fontSize: 14,
-    color: '#4A7C9E',
+    color: colors.primary,
     fontWeight: '500',
   },
   customContentScroll: {
@@ -562,10 +604,10 @@ const getStyles = (colors) => StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     marginTop: 24,
     marginBottom: 16,
   },
@@ -576,27 +618,28 @@ const getStyles = (colors) => StyleSheet.create({
   saveToLibraryLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
     marginBottom: 4,
   },
   saveToLibraryDescription: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
+    color: colors.text,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -606,43 +649,43 @@ const getStyles = (colors) => StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   typeButtonActive: {
-    borderColor: '#4A7C9E',
-    backgroundColor: '#f3e5f5',
+    borderColor: colors.primary,
+    backgroundColor: colors.purpleLight,
   },
   typeButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textSecondary,
   },
   typeButtonTextActive: {
-    color: '#4A7C9E',
+    color: colors.primary,
   },
   modeButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   modeButtonActive: {
-    borderColor: '#4A7C9E',
-    backgroundColor: '#f3e5f5',
+    borderColor: colors.primary,
+    backgroundColor: colors.purpleLight,
   },
   modeButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textSecondary,
   },
   modeButtonTextActive: {
-    color: '#4A7C9E',
+    color: colors.primary,
   },
   durationRow: {
     flexDirection: 'row',
@@ -652,29 +695,30 @@ const getStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   durationInput: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     textAlign: 'center',
+    color: colors.text,
   },
   durationLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
   addButton: {
-    backgroundColor: '#4A7C9E',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
   },
   addButtonText: {
-    color: '#fff',
+    color: colors.textLight,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -684,12 +728,12 @@ const getStyles = (colors) => StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textTertiary,
   },
 });
 
