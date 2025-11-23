@@ -62,19 +62,37 @@ export default function RunSessionScreen({ navigation, route }) {
       // Navigate to the specified return screen
       if (returnTo.tab) {
         // Navigate to a tab (e.g., 'Home')
-        navigation.navigate(returnTo.tab);
+        // First navigate to SessionsList to clean up the stack, then switch tabs
+        navigation.navigate("SessionsList");
+        // Use setTimeout to ensure stack is cleaned before tab switch
+        setTimeout(() => {
+          navigation.getParent()?.navigate(returnTo.tab);
+        }, 100);
       } else if (returnTo.screen) {
         // Navigate to a screen within the current stack
-        navigation.navigate(returnTo.screen, returnTo.params || {});
+        if (returnTo.screen === "SessionsList") {
+          // Pop to top (SessionsList) instead of reset
+          navigation.popToTop();
+        } else {
+          navigation.navigate(returnTo.screen, returnTo.params || {});
+        }
       } else {
-        // Fallback to goBack if returnTo is invalid
-        navigation.goBack();
+        // Fallback: pop to top
+        navigation.popToTop();
       }
     } else {
-      // Default behavior: go back
-      navigation.goBack();
+      // Default behavior: pop to top (SessionsList)
+      navigation.popToTop();
     }
   };
+
+  // Check if screen was navigated to without a valid session - navigate back immediately
+  useEffect(() => {
+    if (!sessionId && !runningSession) {
+      // No sessionId param and no running session - pop to top (SessionsList)
+      navigation.popToTop();
+    }
+  }, [sessionId, runningSession, navigation]);
 
   // Initialize session when screen loads
   useEffect(() => {

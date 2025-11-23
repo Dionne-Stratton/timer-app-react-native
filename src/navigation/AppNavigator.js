@@ -26,6 +26,7 @@ function SessionsStack() {
   
   return (
     <Stack.Navigator
+      initialRouteName="SessionsList"
       screenOptions={{
         headerStyle: {
           backgroundColor: colors.primary,
