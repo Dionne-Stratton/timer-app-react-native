@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,37 +21,39 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
   const blockTemplates = useStore((state) => state.blockTemplates);
   const settings = useStore((state) => state.settings);
   const addBlockTemplate = useStore((state) => state.addBlockTemplate);
+  const updateSettings = useStore((state) => state.updateSettings);
   const [tab, setTab] = useState('library'); // 'library' or 'custom'
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState(null);
 
   // Custom block form state
   const [customLabel, setCustomLabel] = useState('');
-  const [customType, setCustomType] = useState(BlockType.ACTIVITY);
+  const [customCategory, setCustomCategory] = useState(BUILT_IN_CATEGORIES[0]);
   const [customMode, setCustomMode] = useState(BlockMode.DURATION);
   const [customMinutes, setCustomMinutes] = useState(0);
   const [customSeconds, setCustomSeconds] = useState(30);
   const [customReps, setCustomReps] = useState(10);
   const [customPerRepSeconds, setCustomPerRepSeconds] = useState(5);
-  const [saveToLibrary, setSaveToLibrary] = useState(false);
+  const [saveToLibrary, setSaveToLibrary] = useState(settings.defaultSaveToLibrary ?? true);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   // Filter to only activities (rest/transition are not in library)
   const activities = blockTemplates.filter(template => template.type === BlockType.ACTIVITY);
   
   // Get all available categories (built-in + custom)
   const allCategories = React.useMemo(() => {
-    const categories = new Set(BUILT_IN_CATEGORIES);
-    if (settings.isProUser) {
-      settings.customCategories?.forEach(cat => categories.add(cat));
+    const categories = [...BUILT_IN_CATEGORIES];
+    if (settings.isProUser && settings.customCategories) {
+      categories.push(...settings.customCategories);
     }
-    // Also include categories from existing activities
-    activities.forEach(activity => {
-      if (activity.category) {
-        categories.add(activity.category);
-      }
-    });
-    return Array.from(categories).sort();
-  }, [activities, settings.customCategories, settings.isProUser]);
+    return categories;
+  }, [settings.customCategories, settings.isProUser]);
+
+  // Sync saveToLibrary with settings when modal opens or settings change
+  useEffect(() => {
+    setSaveToLibrary(settings.defaultSaveToLibrary ?? true);
+  }, [visible, settings.defaultSaveToLibrary]);
   
   const filteredTemplates = activities.filter((template) => {
     const matchesSearch =
@@ -88,7 +90,11 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
 
   const handleAddCustom = async () => {
     if (!customLabel.trim()) {
-      Alert.alert('Validation Error', 'Please enter a name for this block.');
+      Alert.alert('Validation Error', 'Please enter a name for this activity.');
+      return;
+    }
+    if (!customCategory) {
+      Alert.alert('Validation Error', 'Please select a category for this activity.');
       return;
     }
 
@@ -118,7 +124,8 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
     if (saveToLibrary) {
       const template = {
         label: customLabel.trim(),
-        type: customType,
+        type: BlockType.ACTIVITY,
+        category: customCategory === 'Uncategorized' ? null : customCategory,
         mode: customMode,
         ...(customMode === BlockMode.DURATION
           ? { durationSeconds }
@@ -135,7 +142,8 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
       id: generateId(),
       templateId: templateId, // Will be null if not saved to library
       label: customLabel.trim(),
-      type: customType,
+      type: BlockType.ACTIVITY,
+      category: customCategory === 'Uncategorized' ? null : customCategory,
       mode: customMode,
       ...(customMode === BlockMode.DURATION
         ? { durationSeconds }
@@ -149,13 +157,13 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
     
     // Reset form
     setCustomLabel('');
-    setCustomType(BlockType.ACTIVITY);
+    setCustomCategory(BUILT_IN_CATEGORIES[0]);
     setCustomMode(BlockMode.DURATION);
     setCustomMinutes(0);
     setCustomSeconds(30);
     setCustomReps(10);
     setCustomPerRepSeconds(5);
-    setSaveToLibrary(false);
+    setSaveToLibrary(settings.defaultSaveToLibrary ?? true);
     
     onClose();
   };
@@ -196,7 +204,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeButtonText}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Block</Text>
+          <Text style={styles.headerTitle}>Add Activity</Text>
           <View style={styles.closeButton} />
         </View>
 
@@ -218,7 +226,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
             <Text
               style={[styles.tabText, tab === 'custom' && styles.tabTextActive]}
             >
-              Custom Block
+              Add Custom
             </Text>
           </TouchableOpacity>
         </View>
@@ -306,32 +314,50 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
               placeholderTextColor={colors.textTertiary}
             />
 
-            <Text style={styles.label}>Type *</Text>
-            <View style={styles.buttonRow}>
-              {Object.values(BlockType).map((type) => {
-                const blockTypeColor = getBlockTypeColor(type, colors);
-                const isActive = customType === type;
-                
-                return (
+            {/* Category Selection */}
+            <View style={styles.section}>
+              <Text style={styles.label}>Category *</Text>
+              <View style={styles.categoryContainer}>
+                {allCategories.map((cat) => (
                   <TouchableOpacity
-                    key={type}
+                    key={cat}
                     style={[
-                      styles.typeButton,
-                      isActive && { backgroundColor: blockTypeColor, borderColor: blockTypeColor },
+                      styles.categoryChip,
+                      customCategory === cat && styles.categoryChipActive,
                     ]}
-                    onPress={() => setCustomType(type)}
+                    onPress={() => setCustomCategory(cat)}
                   >
                     <Text
                       style={[
-                        styles.typeButtonText,
-                        isActive && { color: colors.textLight },
+                        styles.categoryChipText,
+                        customCategory === cat && styles.categoryChipTextActive,
                       ]}
                     >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      {cat}
                     </Text>
                   </TouchableOpacity>
-                );
-              })}
+                ))}
+              </View>
+              {settings.isProUser && (
+                <TouchableOpacity
+                  style={styles.addCategoryButton}
+                  onPress={() => {
+                    setShowAddCategoryModal(true);
+                  }}
+                >
+                  <Text style={styles.addCategoryButtonText}>+ Add Category</Text>
+                </TouchableOpacity>
+              )}
+              {!settings.isProUser && (
+                <TouchableOpacity
+                  style={[styles.addCategoryButton, styles.addCategoryButtonDisabled]}
+                  disabled
+                >
+                  <Text style={[styles.addCategoryButtonText, styles.addCategoryButtonTextDisabled]}>
+                    🔒 + Add Category (Pro)
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <Text style={styles.label}>Mode *</Text>
@@ -431,12 +457,15 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
               <View style={styles.saveToLibraryContent}>
                 <Text style={styles.saveToLibraryLabel}>Save to Library</Text>
                 <Text style={styles.saveToLibraryDescription}>
-                  Save this block to your activity library for future use
+                  Save this activity to your activity library for future use
                 </Text>
               </View>
               <Switch
                 value={saveToLibrary}
-                onValueChange={setSaveToLibrary}
+                onValueChange={(value) => {
+                  setSaveToLibrary(value);
+                  updateSettings({ defaultSaveToLibrary: value });
+                }}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor={colors.textLight}
               />
@@ -450,6 +479,59 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
             </TouchableOpacity>
           </ScrollView>
         )}
+
+        {/* Add Category Modal */}
+        <Modal
+          visible={showAddCategoryModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowAddCategoryModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Add Custom Category</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Category Name"
+                placeholderTextColor={colors.textTertiary}
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+                autoCapitalize="words"
+              />
+              <View style={styles.modalButtonRow}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalCancelButton]}
+                  onPress={() => {
+                    setShowAddCategoryModal(false);
+                    setNewCategoryName('');
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalConfirmButton]}
+                  onPress={() => {
+                    if (!newCategoryName.trim()) {
+                      Alert.alert('Validation Error', 'Category name cannot be empty.');
+                      return;
+                    }
+                    const trimmedName = newCategoryName.trim();
+                    if (BUILT_IN_CATEGORIES.includes(trimmedName) || settings.customCategories?.includes(trimmedName)) {
+                      Alert.alert('Validation Error', 'Category already exists.');
+                      return;
+                    }
+                    updateSettings({ customCategories: [...(settings.customCategories || []), trimmedName] });
+                    setCustomCategory(trimmedName);
+                    setNewCategoryName('');
+                    setShowAddCategoryModal(false);
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>Add</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
   );
@@ -625,12 +707,70 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
+  section: {
+    marginBottom: 24,
+  },
   label: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginTop: 16,
     marginBottom: 8,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  categoryChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryChipDisabled: {
+    backgroundColor: colors.backgroundMedium,
+    borderColor: colors.border,
+    opacity: 0.7,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  categoryChipTextActive: {
+    color: colors.textLight,
+    fontWeight: '600',
+  },
+  categoryChipTextDisabled: {
+    color: colors.textTertiary,
+  },
+  addCategoryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  addCategoryButtonDisabled: {
+    opacity: 0.5,
+  },
+  addCategoryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  addCategoryButtonTextDisabled: {
+    color: colors.textTertiary,
   },
   input: {
     backgroundColor: colors.cardBackground,
@@ -644,27 +784,6 @@ const getStyles = (colors) => StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: 8,
-  },
-  typeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: colors.cardBackground,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  typeButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.purpleLight,
-  },
-  typeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  typeButtonTextActive: {
-    color: colors.primary,
   },
   modeButton: {
     flex: 1,
@@ -734,6 +853,62 @@ const getStyles = (colors) => StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: colors.textTertiary,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 24,
+    width: '80%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  modalInput: {
+    width: '100%',
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+    marginBottom: 20,
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: colors.backgroundMedium,
+  },
+  modalConfirmButton: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textLight,
   },
 });
 

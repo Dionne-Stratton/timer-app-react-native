@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Modal,
   Platform,
   ActionSheetIOS,
+  TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -30,6 +31,7 @@ export default function SessionsScreen({ navigation }) {
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [selectedSessionName, setSelectedSessionName] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Force recalculation when screen comes back into focus (after modal closes)
   useFocusEffect(
@@ -156,6 +158,17 @@ export default function SessionsScreen({ navigation }) {
 
   const styles = getStyles(colors);
 
+  // Filter sessions based on search query
+  const filteredSessions = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return sessionTemplates;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return sessionTemplates.filter((session) =>
+      session.name.toLowerCase().includes(query)
+    );
+  }, [sessionTemplates, searchQuery]);
+
   const renderSessionItem = ({ item }) => {
     const totalDuration = getSessionTotalDuration(item);
     const blockCount = item.items ? item.items.length : 0;
@@ -187,16 +200,34 @@ export default function SessionsScreen({ navigation }) {
 
   return (
     <View key={safeAreaKey} style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name..."
+          placeholderTextColor={colors.textTertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
       <FlatList
-        data={sessionTemplates}
+        data={filteredSessions}
         renderItem={renderSessionItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No sessions yet</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery.trim()
+                ? 'No sessions match your search'
+                : 'No sessions yet'}
+            </Text>
             <Text style={styles.emptySubtext}>
-              Tap "+ New Session" to create one
+              {searchQuery.trim()
+                ? 'Try adjusting your search'
+                : 'Tap "+ New Session" to create one'}
             </Text>
           </View>
         }
@@ -281,8 +312,23 @@ const getStyles = (colors) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  searchContainer: {
+    padding: 16,
+    paddingBottom: 8,
+    backgroundColor: colors.background,
+  },
+  searchInput: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   listContent: {
     padding: 16,
+    paddingTop: 8,
     paddingBottom: 100,
   },
   sessionItem: {

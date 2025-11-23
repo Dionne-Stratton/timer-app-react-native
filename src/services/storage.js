@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = {
   themeMode: 'system', // 'light', 'dark', or 'system'
   customCategories: [], // Pro feature - custom category names
   isProUser: false, // Toggle for testing Pro features
+  defaultSaveToLibrary: true, // Default value for "Save to Library" toggle in Add Custom
 };
 
 /**

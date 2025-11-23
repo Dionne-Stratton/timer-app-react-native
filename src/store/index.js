@@ -22,6 +22,7 @@ const useStore = create((set, get) => ({
     themeMode: 'system',
     customCategories: [],
     isProUser: false,
+    defaultSaveToLibrary: true,
   },
 
   // Running session state
