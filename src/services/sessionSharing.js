@@ -16,6 +16,17 @@ export const sessionSharingService = {
    */
   async exportSession(session) {
     try {
+      // Check if user is Pro (export is Pro-only)
+      const settings = useStore.getState().settings;
+      if (!settings.isProUser) {
+        Alert.alert(
+          'Export Sessions (Pro)',
+          'Exporting sessions is a Pro feature. Upgrade to share your sessions with others.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+      
       if (!session) {
         Alert.alert('Error', 'No session selected');
         return false;

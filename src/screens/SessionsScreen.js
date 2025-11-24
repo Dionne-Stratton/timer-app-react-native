@@ -18,6 +18,7 @@ import useStore from '../store';
 import { getSessionTotalDuration, formatTime } from '../types';
 import { sessionSharingService } from '../services/sessionSharing';
 import { useTheme } from '../theme';
+import ProUpgradeModal from '../components/ProUpgradeModal';
 
 export default function SessionsScreen({ navigation }) {
   const [safeAreaKey, setSafeAreaKey] = React.useState(0);
@@ -32,6 +33,9 @@ export default function SessionsScreen({ navigation }) {
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [selectedSessionName, setSelectedSessionName] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [proModalVisible, setProModalVisible] = useState(false);
+  const [proModalLimitType, setProModalLimitType] = useState(null);
+  const settings = useStore((state) => state.settings);
   
   // Force recalculation when screen comes back into focus (after modal closes)
   useFocusEffect(
@@ -55,6 +59,12 @@ export default function SessionsScreen({ navigation }) {
   };
 
   const handleCreateSession = () => {
+    // Check session limit for free users
+    if (!settings.isProUser && sessionTemplates.length >= 5) {
+      setProModalLimitType('sessions');
+      setProModalVisible(true);
+      return;
+    }
     navigation.navigate('SessionBuilder', { sessionId: null });
   };
 
@@ -71,6 +81,12 @@ export default function SessionsScreen({ navigation }) {
   };
 
   const handleDuplicateSession = async (sessionId) => {
+    // Check session limit for free users
+    if (!settings.isProUser && sessionTemplates.length >= 5) {
+      setProModalLimitType('sessions');
+      setProModalVisible(true);
+      return;
+    }
     await duplicateSessionTemplate(sessionId);
     // Refresh the list
     await useStore.getState().initialize();
@@ -94,6 +110,13 @@ export default function SessionsScreen({ navigation }) {
   };
 
   const handleShareSession = async (sessionId) => {
+    // Check if user is Pro (export is Pro-only)
+    if (!settings.isProUser) {
+      setProModalLimitType('export');
+      setProModalVisible(true);
+      return;
+    }
+    
     const session = sessionTemplates.find((s) => s.id === sessionId);
     if (!session) {
       Alert.alert('Error', 'Session not found');
@@ -180,7 +203,7 @@ export default function SessionsScreen({ navigation }) {
     return (
       <TouchableOpacity
         style={styles.sessionItem}
-        onPress={() => handleStartSession(item.id)}
+        onPress={() => navigation.navigate('SessionPreview', { sessionId: item.id })}
         activeOpacity={0.7}
       >
         <View style={styles.sessionContent}>
@@ -202,8 +225,20 @@ export default function SessionsScreen({ navigation }) {
     );
   };
 
+  const handleProModalUpgrade = () => {
+    setProModalVisible(false);
+    navigation.navigate('Settings', { screen: 'GoPro' });
+  };
+
   return (
     <View key={safeAreaKey} style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Free Plan Banner */}
+      {!settings.isProUser && (
+        <View style={styles.freeBanner}>
+          <Text style={styles.freeBannerText}>Free plan: Up to 5 sessions.</Text>
+        </View>
+      )}
+      
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <TextInput
@@ -307,6 +342,14 @@ export default function SessionsScreen({ navigation }) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Pro Upgrade Modal */}
+      <ProUpgradeModal
+        visible={proModalVisible}
+        onClose={() => setProModalVisible(false)}
+        limitType={proModalLimitType}
+        onUpgrade={handleProModalUpgrade}
+      />
     </View>
   );
 }
@@ -315,6 +358,18 @@ const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  freeBanner: {
+    backgroundColor: colors.cardBackground,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  freeBannerText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   searchContainer: {
     padding: 16,

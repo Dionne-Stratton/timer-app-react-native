@@ -17,13 +17,16 @@ import { getISOWeekday } from '../utils/history';
 import AddBlockModal from '../components/AddBlockModal';
 import AddRestTransitionModal from '../components/AddRestTransitionModal';
 import { useTheme } from '../theme';
+import ProUpgradeModal from '../components/ProUpgradeModal';
 
 export default function SessionBuilderScreen({ navigation, route }) {
   const { sessionId } = route.params || {};
   const colors = useTheme();
   const sessionTemplates = useStore((state) => state.sessionTemplates);
+  const settings = useStore((state) => state.settings);
   const addSessionTemplate = useStore((state) => state.addSessionTemplate);
   const updateSessionTemplate = useStore((state) => state.updateSessionTemplate);
+  const [proModalVisible, setProModalVisible] = useState(false);
 
   const existingSession =
     sessionId !== null && sessionId !== undefined
@@ -96,6 +99,11 @@ export default function SessionBuilderScreen({ navigation, route }) {
           scheduledDaysOfWeek: scheduledDaysOfWeek,
         });
       } else {
+        // Check session limit for free users when creating new session
+        if (!settings.isProUser && sessionTemplates.length >= 5) {
+          setProModalVisible(true);
+          return;
+        }
         await addSessionTemplate({
           name: sessionName.trim(),
           items,
@@ -107,6 +115,11 @@ export default function SessionBuilderScreen({ navigation, route }) {
       Alert.alert('Error', 'Failed to save session. Please try again.');
       console.error(error);
     }
+  };
+  
+  const handleProModalUpgrade = () => {
+    setProModalVisible(false);
+    navigation.getParent()?.navigate('Settings', { screen: 'GoPro' });
   };
 
   const handleAddBlock = (blockInstance) => {
@@ -363,6 +376,7 @@ export default function SessionBuilderScreen({ navigation, route }) {
           visible={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAddBlock={handleAddBlock}
+          navigation={navigation}
         />
       )}
       
@@ -385,6 +399,14 @@ export default function SessionBuilderScreen({ navigation, route }) {
           onAdd={handleAddBlock}
         />
       )}
+      
+      {/* Pro Upgrade Modal */}
+      <ProUpgradeModal
+        visible={proModalVisible}
+        onClose={() => setProModalVisible(false)}
+        limitType="sessions"
+        onUpgrade={handleProModalUpgrade}
+      />
     </View>
   );
 }

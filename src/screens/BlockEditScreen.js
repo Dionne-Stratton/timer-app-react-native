@@ -14,6 +14,8 @@ import useStore from '../store';
 import { BlockType, BlockMode, getBlockTypeColor, BUILT_IN_CATEGORIES } from '../types';
 import { generateId } from '../utils/id';
 import { useTheme } from '../theme';
+import ProUpgradeModal from '../components/ProUpgradeModal';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function BlockEditScreen({ navigation, route }) {
   const { blockId } = route.params || {};
@@ -34,15 +36,22 @@ export default function BlockEditScreen({ navigation, route }) {
   const [mode, setMode] = useState(existingBlock?.mode || BlockMode.DURATION);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [proModalVisible, setProModalVisible] = useState(false);
   
-  // Get all available categories
+  // Get all available categories (built-in + custom, with custom shown even if not Pro)
   const allCategories = React.useMemo(() => {
     const categories = [...BUILT_IN_CATEGORIES];
-    if (settings.isProUser && settings.customCategories) {
+    // Show custom categories even for free users (they'll be locked)
+    if (settings.customCategories) {
       categories.push(...settings.customCategories);
     }
     return categories;
-  }, [settings.customCategories, settings.isProUser]);
+  }, [settings.customCategories]);
+  
+  // Check if a category is custom (not built-in)
+  const isCustomCategory = (cat) => {
+    return !BUILT_IN_CATEGORIES.includes(cat);
+  };
   const [minutes, setMinutes] = useState(
     existingBlock?.mode === BlockMode.DURATION
       ? Math.floor((existingBlock.durationSeconds || 0) / 60)
@@ -116,6 +125,12 @@ export default function BlockEditScreen({ navigation, route }) {
       if (isEditing) {
         await updateBlockTemplate(blockId, blockData);
       } else {
+        // Check activity limit for free users when creating new activity
+        const activities = blockTemplates.filter(b => b.type === BlockType.ACTIVITY);
+        if (!settings.isProUser && activities.length >= 20) {
+          setProModalVisible(true);
+          return;
+        }
         await addBlockTemplate(blockData);
       }
       navigation.goBack();
@@ -127,10 +142,19 @@ export default function BlockEditScreen({ navigation, route }) {
 
   const handleAddCategory = () => {
     if (!settings.isProUser) {
-      Alert.alert('Pro Feature', 'Custom categories are only available for Pro users. Enable Pro features in Settings to unlock this.');
+      setProModalVisible(true);
       return;
     }
     setShowAddCategoryModal(true);
+  };
+  
+  const handleCategorySelect = (cat) => {
+    // If it's a custom category and user is not Pro, show Pro modal
+    if (isCustomCategory(cat) && !settings.isProUser) {
+      setProModalVisible(true);
+      return;
+    }
+    setCategory(cat);
   };
 
   const handleSaveCategory = () => {
@@ -193,25 +217,33 @@ export default function BlockEditScreen({ navigation, route }) {
         <View style={styles.section}>
           <Text style={styles.label}>Category *</Text>
           <View style={styles.categoryContainer}>
-            {allCategories.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.categoryChip,
-                  category === cat && styles.categoryChipActive,
-                ]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text
+            {allCategories.map((cat) => {
+              const isCustom = isCustomCategory(cat);
+              const isLocked = isCustom && !settings.isProUser;
+              return (
+                <TouchableOpacity
+                  key={cat}
                   style={[
-                    styles.categoryChipText,
-                    category === cat && styles.categoryChipTextActive,
+                    styles.categoryChip,
+                    category === cat && styles.categoryChipActive,
+                    isLocked && styles.categoryChipLocked,
                   ]}
+                  onPress={() => handleCategorySelect(cat)}
+                  disabled={isLocked}
                 >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      category === cat && styles.categoryChipTextActive,
+                      isLocked && styles.categoryChipTextLocked,
+                    ]}
+                  >
+                    {cat}
+                    {isLocked && ' 🔒'}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           {settings.isProUser && (
             <TouchableOpacity
@@ -357,6 +389,13 @@ export default function BlockEditScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
+
+      {/* Pro Upgrade Modal */}
+      <ProUpgradeModal
+        visible={proModalVisible}
+        onClose={() => setProModalVisible(false)}
+        limitType="customCategory"
+      />
     </ScrollView>
   );
 }
@@ -422,6 +461,12 @@ const getStyles = (colors) => StyleSheet.create({
   categoryChipTextActive: {
     color: colors.textLight,
     fontWeight: '600',
+  },
+  categoryChipLocked: {
+    opacity: 0.7,
+  },
+  categoryChipTextLocked: {
+    color: colors.textTertiary,
   },
   addCategoryButton: {
     paddingVertical: 10,

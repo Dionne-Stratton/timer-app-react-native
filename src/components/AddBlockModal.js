@@ -15,8 +15,9 @@ import useStore from '../store';
 import { BlockType, BlockMode, getBlockTimingSummary, getBlockTypeColor, BUILT_IN_CATEGORIES } from '../types';
 import { generateId } from '../utils/id';
 import { useTheme } from '../theme';
+import ProUpgradeModal from './ProUpgradeModal';
 
-export default function AddBlockModal({ visible, onClose, onAddBlock }) {
+export default function AddBlockModal({ visible, onClose, onAddBlock, navigation }) {
   const colors = useTheme();
   const blockTemplates = useStore((state) => state.blockTemplates);
   const settings = useStore((state) => state.settings);
@@ -37,18 +38,45 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
   const [saveToLibrary, setSaveToLibrary] = useState(settings.defaultSaveToLibrary ?? true);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [proModalVisible, setProModalVisible] = useState(false);
+  const [proModalLimitType, setProModalLimitType] = useState(null);
 
   // Filter to only activities (rest/transition are not in library)
   const activities = blockTemplates.filter(template => template.type === BlockType.ACTIVITY);
   
-  // Get all available categories (built-in + custom)
+  // Get all available categories (built-in + custom, with custom shown even if not Pro)
   const allCategories = React.useMemo(() => {
     const categories = [...BUILT_IN_CATEGORIES];
-    if (settings.isProUser && settings.customCategories) {
+    // Show custom categories even for free users (they'll be locked)
+    if (settings.customCategories) {
       categories.push(...settings.customCategories);
     }
     return categories;
-  }, [settings.customCategories, settings.isProUser]);
+  }, [settings.customCategories]);
+  
+  // Check if a category is custom (not built-in)
+  const isCustomCategory = (cat) => {
+    return !BUILT_IN_CATEGORIES.includes(cat);
+  };
+  
+  const handleCategorySelect = (cat) => {
+    // If it's a custom category and user is not Pro, show Pro modal
+    if (isCustomCategory(cat) && !settings.isProUser) {
+      setProModalLimitType('customCategory');
+      setProModalVisible(true);
+      return;
+    }
+    setCustomCategory(cat);
+  };
+  
+  const handleAddCategory = () => {
+    if (!settings.isProUser) {
+      setProModalLimitType('customCategory');
+      setProModalVisible(true);
+      return;
+    }
+    setShowAddCategoryModal(true);
+  };
 
   // Sync saveToLibrary with settings when modal opens or settings change
   useEffect(() => {
@@ -118,25 +146,32 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
       }
     }
 
-    let templateId = null;
-    
-    // If save to library is checked, save the block as a template first
-    if (saveToLibrary) {
-      const template = {
-        label: customLabel.trim(),
-        type: BlockType.ACTIVITY,
-        category: customCategory === 'Uncategorized' ? null : customCategory,
-        mode: customMode,
-        ...(customMode === BlockMode.DURATION
-          ? { durationSeconds }
-          : {
-              reps: customReps,
-              perRepSeconds: customPerRepSeconds,
-            }),
-      };
-      const savedTemplate = await addBlockTemplate(template);
-      templateId = savedTemplate.id;
-    }
+        let templateId = null;
+        
+        // If save to library is checked, check activity limit for free users
+        if (saveToLibrary) {
+          // Check activity limit (20 max for free users)
+          if (!settings.isProUser && activities.length >= 20) {
+            setProModalLimitType('activities');
+            setProModalVisible(true);
+            return;
+          }
+          
+          const template = {
+            label: customLabel.trim(),
+            type: BlockType.ACTIVITY,
+            category: customCategory === 'Uncategorized' ? null : customCategory,
+            mode: customMode,
+            ...(customMode === BlockMode.DURATION
+              ? { durationSeconds }
+              : {
+                  reps: customReps,
+                  perRepSeconds: customPerRepSeconds,
+                }),
+          };
+          const savedTemplate = await addBlockTemplate(template);
+          templateId = savedTemplate.id;
+        }
 
     const blockInstance = {
       id: generateId(),
@@ -318,32 +353,38 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
             <View style={styles.section}>
               <Text style={styles.label}>Category *</Text>
               <View style={styles.categoryContainer}>
-                {allCategories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.categoryChip,
-                      customCategory === cat && styles.categoryChipActive,
-                    ]}
-                    onPress={() => setCustomCategory(cat)}
-                  >
-                    <Text
+                {allCategories.map((cat) => {
+                  const isCustom = isCustomCategory(cat);
+                  const isLocked = isCustom && !settings.isProUser;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
                       style={[
-                        styles.categoryChipText,
-                        customCategory === cat && styles.categoryChipTextActive,
+                        styles.categoryChip,
+                        customCategory === cat && styles.categoryChipActive,
+                        isLocked && styles.categoryChipLocked,
                       ]}
+                      onPress={() => handleCategorySelect(cat)}
+                      disabled={isLocked}
                     >
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          customCategory === cat && styles.categoryChipTextActive,
+                          isLocked && styles.categoryChipTextLocked,
+                        ]}
+                      >
+                        {cat}
+                        {isLocked && ' 🔒'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
               {settings.isProUser && (
                 <TouchableOpacity
                   style={styles.addCategoryButton}
-                  onPress={() => {
-                    setShowAddCategoryModal(true);
-                  }}
+                  onPress={handleAddCategory}
                 >
                   <Text style={styles.addCategoryButtonText}>+ Add Category</Text>
                 </TouchableOpacity>
@@ -351,7 +392,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
               {!settings.isProUser && (
                 <TouchableOpacity
                   style={[styles.addCategoryButton, styles.addCategoryButtonDisabled]}
-                  disabled
+                  onPress={handleAddCategory}
                 >
                   <Text style={[styles.addCategoryButtonText, styles.addCategoryButtonTextDisabled]}>
                     🔒 + Add Category (Pro)
@@ -533,6 +574,20 @@ export default function AddBlockModal({ visible, onClose, onAddBlock }) {
           </View>
         </Modal>
       </View>
+
+      {/* Pro Upgrade Modal */}
+      <ProUpgradeModal
+        visible={proModalVisible}
+        onClose={() => setProModalVisible(false)}
+        limitType={proModalLimitType}
+        onUpgrade={() => {
+          setProModalVisible(false);
+          onClose();
+          if (navigation) {
+            navigation.getParent()?.navigate('Settings', { screen: 'GoPro' });
+          }
+        }}
+      />
     </Modal>
   );
 }
@@ -748,6 +803,12 @@ const getStyles = (colors) => StyleSheet.create({
   categoryChipTextActive: {
     color: colors.textLight,
     fontWeight: '600',
+  },
+  categoryChipLocked: {
+    opacity: 0.7,
+  },
+  categoryChipTextLocked: {
+    color: colors.textTertiary,
   },
   categoryChipTextDisabled: {
     color: colors.textTertiary,

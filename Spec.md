@@ -643,3 +643,501 @@ Milestone 1: Data + Builder
 Milestone 2: Run Session
 Milestone 3: Notifications + Sharing
 Milestone 4: Home Dashboard & History
+
+12. Pricing & Plans (Free vs Pro)
+
+(Paste this directly into your spec — it is complete and self-contained.)
+
+Overview
+
+The app uses a two-tier model:
+
+Free Tier
+
+Pro Tier (unlocks all advanced functionality)
+
+Users may upgrade via in-app purchases through the App Store / Play Store.
+Pro may be purchased as a monthly subscription, yearly subscription, or lifetime one-time unlock.
+
+12.1 Free Tier — Features & Limits
+
+The Free tier provides a fully functional timer app with reasonable limits designed for casual users.
+
+Free Tier Includes
+
+✔ Create sessions and run them normally
+✔ Create/save activities (up to limit)
+✔ Access all built-in categories
+✔ Rest & Transition blocks (unlimited)
+✔ Session history (last 30 days)
+✔ Home dashboard (Quick Start, Streaks, Weekly Stats, Activity Feed)
+✔ Import sessions shared by Pro users
+✔ Background notifications
+✔ All timing features (countdown, warning, sounds, vibration)
+
+Free Tier Limits
+
+To keep free usage generous but encourage upgrades:
+
+Sessions Limit
+
+Maximum: 5 saved sessions
+
+If user tries to create a 6th session:
+→ Show Pro upsell modal
+→ Explain: “Free plan allows up to 5 sessions.”
+
+Activity Library Limit
+
+Maximum: 20 saved activities
+
+Rest and transitions do not count toward this number.
+
+If the user attempts to add the 21st activity, show Pro upsell.
+
+Categories
+
+Only built-in categories available:
+
+Exercise
+
+Study
+
+Work
+
+Household
+
+Creative
+
+Uncategorized
+
+Custom categories are locked.
+
+History Retention
+
+Only keeps last 30 days of session history
+
+Streaks and stats calculated only from this window
+
+12.2 Pro Tier — Features
+
+Pro unlocks advanced capability intended for trainers, tutors, therapists, coaches, and power users.
+
+Pro Unlocks
+Unlimited Sessions
+
+No limit on how many sessions a user may create/store.
+
+Unlimited Activities
+
+No limit on saved activities in the Library.
+
+Custom Categories
+
+Create unlimited new categories
+
+Rename/delete categories
+
+Used in Activity Editor and filters
+
+Imported sessions with custom categories auto-add them into the user’s category list
+
+Full History
+
+Unlimited session history retention
+
+Streaks and stats reflect full usage
+
+Option to export history in future versions (not required now)
+
+Export Sessions
+
+Pro users may export/share sessions via:
+
+JSON file
+
+Device share sheet
+
+AirDrop
+
+Messaging apps
+
+Email, etc.
+
+Import remains free so clients/students can receive.
+
+Priority Features (for future expansion)
+
+Reserved for Pro tier (not required for v1, but structurally defined):
+
+Cloud backup & sync
+
+Analytics / performance stats
+
+Client/Student mode
+
+Templates gallery
+
+Notes per block
+
+Multi-device sync
+
+These do not need implementation now — this section simply future-proofs Pro.
+
+12.3 Pro Pricing
+Subscription Options
+
+$0.99 / month
+
+$9.99 / year
+(approx. 17% discount vs monthly; recommended default)
+
+Lifetime Unlock
+
+$14.99 one-time purchase
+
+Includes all current and future Pro features permanently
+
+Users may upgrade from:
+
+Monthly → Yearly
+
+Yearly → Lifetime
+Store rules manage pro-rated pricing.
+
+12.4 Upgrade Advertising (UI Requirements)
+In-app Upgrade Screen
+
+Provide a dedicated “Go Pro” screen accessible via:
+
+Settings
+
+When hitting limits (sessions, activities)
+
+When attempting to create custom categories
+
+This screen should include:
+
+Title: “Timer Pro”
+
+Features list (bulleted)
+
+Comparison table (Free vs Pro)
+
+Prices (Monthly, Yearly, Lifetime)
+
+One button per purchase option
+
+Subtle Labels
+
+On the Sessions screen:
+
+“Free plan: Up to 5 sessions.”
+
+On the Activities screen:
+
+“Free plan: Up to 20 activities.”
+
+These are unobtrusive text (small, gray), to avoid surprise limits.
+
+12.5 Import/Export Behavior Under Pricing System
+Import
+
+Remains free for all users.
+
+Free users: custom categories imported are mapped to "Uncategorized"
+
+Pro users: custom categories auto-added to their list
+
+Export
+
+Locked behind Pro.
+
+If a free user tries to export:
+→ Show Pro upsell modal.
+
+12.6 Data Model Additions
+
+Extend Settings:
+isProUser: boolean // updated by purchase/restore logic
+customCategories: string[] // only editable in Pro
+
+No other core data models require changes for monetization.
+
+12.7 Handling Exceeding Limits
+Sessions Limit (5)
+
+When a free user tries to create the 6th session:
+
+Block creation
+
+Show Pro upgrade modal
+
+Activity Limit (20)
+
+When a free user tries to save the 21st Activity:
+
+Block creation
+
+Show Pro upgrade modal
+
+Custom Category Creation
+
+When a free user taps “Add Category”:
+
+Show Pro upgrade modal instead of opening creation screen
+
+12.8 Restore Purchases
+
+Provide a “Restore Purchases” button in Settings for:
+
+iOS users (required by Apple)
+
+Android users (optional but recommended)
+
+12.9 Offline Behavior
+
+Purchases should be cached locally via persistent storage so Pro features remain available offline once unlocked.
+
+# **13. Downgrade Behavior (When Pro Expires or Subscription is Canceled)**
+
+This section defines what happens when a user who previously had Pro features (via subscription, yearly plan, or lifetime) loses access to Pro.
+
+The downgrade model MUST:
+
+- **Never delete existing data**
+- **Never break user flows for viewing or running sessions**
+- **Only restrict creation or editing of items beyond Free limits**
+- **Maintain trust and transparency**
+
+This behavior matches the standard used by major productivity apps (Notion, Todoist, TickTick).
+
+---
+
+# **13.1 General Principles**
+
+1. **Users never lose data because of a downgrade.**
+   All sessions, activities, categories, and history remain intact.
+
+2. **Users may always RUN any session**, even if it exceeds Free limits.
+
+3. **Users may VIEW all existing activities and sessions**, regardless of count.
+
+4. **Only creation or editing actions beyond the Free tier limits are blocked.**
+
+5. **Custom categories remain visible**, but cannot be edited or used for new items unless the user upgrades again.
+
+6. **Upsell prompts appear only when users attempt actions that require Pro.**
+
+---
+
+# **13.2 Behavior When User Has More Items Than Free Limits Allow**
+
+If the user downgrades and currently has:
+
+- More than **5 sessions**
+- More than **20 activities**
+- One or more **custom categories**
+- History older than 30 days
+
+The app behaves as follows:
+
+---
+
+## **13.2.1 Sessions Over Limit**
+
+Free limit: **5 sessions**
+
+If user has more than 5 sessions:
+
+- ✔ User can **view** all sessions
+- ✔ User can **run** all sessions
+- ✔ User can **delete** sessions
+- ❌ User **cannot create new sessions**
+- ❌ User **cannot duplicate sessions**
+
+Attempting to create a new session triggers:
+
+**Modal:**
+
+> “You’ve reached the session limit for the free plan (5).
+> Upgrade to Pro for unlimited sessions.”
+
+A small banner appears at top of Sessions screen:
+
+> “Free plan: You can run your existing sessions but can create up to 5.”
+
+---
+
+## **13.2.2 Activities Over Limit**
+
+Free limit: **20 activities**
+
+If user has more than 20 saved activities:
+
+- ✔ User can **view** all activities
+- ✔ User can **use** existing activities in sessions
+- ✔ User can **delete** activities
+- ❌ User **cannot create new activities**
+- ❌ User **cannot duplicate existing activities**
+
+Attempting to add a new Activity triggers:
+
+**Modal:**
+
+> “Free plan allows up to 20 saved activities.
+> Upgrade to Pro for unlimited activity creation.”
+
+A small banner appears on Activity Library:
+
+> “Free plan: Up to 20 saved activities.”
+
+---
+
+## **13.2.3 Custom Categories After Downgrade**
+
+Free users have **0 custom categories**.
+
+When downgrading:
+
+- ✔ Existing custom categories remain **visible**
+- ✔ Activities keep their custom category labels
+- ❌ User cannot create new custom categories
+- ❌ User cannot rename or delete custom categories
+- ❌ User cannot assign a custom category to new activities
+
+In the Activity Editor:
+
+- The custom categories appear **with a lock icon**
+- Selecting them triggers the Pro upgrade modal
+
+**Modal:**
+
+> “Custom categories are a Pro feature.”
+
+---
+
+## **13.2.4 History After Downgrade**
+
+Free tier retains **30 days** of history.
+
+When downgrading:
+
+- ✔ Existing older history remains viewable until retention enforcement triggers
+- ❌ New history beyond 30 days should auto-prune based on setting
+
+Retention enforcement should occur:
+
+- When adding a new history entry
+- When user modifies history retention setting
+- When app loads (optional)
+
+---
+
+# **13.3 Editing Restrictions After Downgrade**
+
+### **Sessions that use custom categories**
+
+Users may run those sessions normally.
+
+Editing the session is allowed except:
+
+- Editing an Activity inside the session that uses a custom category
+- Adding new blocks that exceed activity/session limits
+
+If an edit action touches a Pro feature, show the upgrade modal.
+
+---
+
+### **Activities that use custom categories**
+
+User may view and use them in sessions.
+
+But:
+
+- Editing the Activity’s name, mode, category, or timing opens Pro modal
+- Deleting is still allowed
+
+---
+
+# **13.4 Import/Export After Downgrade**
+
+### **Import**
+
+Remains **free**.
+Imported custom categories map to:
+
+- `"Uncategorized"` for Free users
+- Auto-add to `customCategories` for Pro users (even if previously downgraded)
+
+### **Export**
+
+Locked behind Pro.
+Attempting to export opens Pro modal.
+
+---
+
+# **13.5 UI Indicators for Over-Limit Settings**
+
+When user is Free and over the limits:
+
+### Sessions screen:
+
+Small gray text:
+
+> “Free plan: Up to 5 saved sessions.”
+
+### Activities screen:
+
+> “Free plan: Up to 20 saved activities.”
+
+### Category picker:
+
+Custom categories shown with lock icons:
+
+```
+Grammar Review 🔒
+Client – Sarah 🔒
+PT – Knee Mobility 🔒
+```
+
+---
+
+# **13.6 State Model Changes**
+
+No model changes needed beyond:
+
+```
+isProUser: boolean
+```
+
+But the UI must respond to `isProUser` toggling _at runtime_.
+
+---
+
+# **13.7 Summary of Downgrade Rules**
+
+**Users never lose data.**
+
+Free users may:
+
+- View/run everything
+- Delete anything
+- Import sessions
+- Interact with older custom categories (as read-only)
+
+Free users may NOT:
+
+- Create > 5 sessions
+- Create > 20 activities
+- Create/edit custom categories
+- Export sessions
+- Use custom categories when creating/editing activities
+- Keep unlimited history
+
+This ensures:
+
+- No data loss
+- No surprise punishments
+- Very clear Pro value
+- Maximum long-term goodwill

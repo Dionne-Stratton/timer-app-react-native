@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import useStore from '../store';
 import { BlockType, getBlockTimingSummary, getBlockTypeColor, BUILT_IN_CATEGORIES } from '../types';
 import { useTheme } from '../theme';
+import ProUpgradeModal from '../components/ProUpgradeModal';
 
 export default function BlockLibraryScreen({ navigation }) {
   const colors = useTheme();
@@ -23,6 +24,7 @@ export default function BlockLibraryScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null); // null = all categories
+  const [proModalVisible, setProModalVisible] = useState(false);
   
   // Filter to only activities (rest/transition are not in library)
   const activities = useMemo(() => {
@@ -209,11 +211,30 @@ export default function BlockLibraryScreen({ navigation }) {
       />
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => navigation.navigate('BlockEdit', { blockId: null })}
+        onPress={() => {
+          // Check activity limit for free users
+          const activities = blockTemplates.filter(b => b.type === BlockType.ACTIVITY);
+          if (!settings.isProUser && activities.length >= 20) {
+            setProModalVisible(true);
+            return;
+          }
+          navigation.navigate('BlockEdit', { blockId: null });
+        }}
         activeOpacity={0.8}
       >
         <Text style={styles.addButtonText}>+ New Activity</Text>
       </TouchableOpacity>
+
+      {/* Pro Upgrade Modal */}
+      <ProUpgradeModal
+        visible={proModalVisible}
+        onClose={() => setProModalVisible(false)}
+        limitType="activities"
+        onUpgrade={() => {
+          setProModalVisible(false);
+          navigation.getParent()?.navigate('Settings', { screen: 'GoPro' });
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -222,6 +243,18 @@ const getStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  freeBanner: {
+    backgroundColor: colors.cardBackground,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  freeBannerText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   searchContainer: {
     padding: 16,
