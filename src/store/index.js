@@ -50,6 +50,9 @@ const useStore = create((set, get) => ({
       settings,
       sessionHistory,
     });
+    
+    // Enforce history retention on app startup
+    await get().enforceHistoryRetention();
   },
 
   // Block Templates actions
@@ -150,14 +153,25 @@ const useStore = create((set, get) => ({
   // History retention enforcement
   enforceHistoryRetention: async () => {
     const { sessionHistory, settings } = get();
-    if (settings.historyRetention === 'unlimited') {
+    
+    // Free users: 30 days retention (override their setting)
+    // Pro users: use their selected retention setting
+    const effectiveRetention = settings.isProUser 
+      ? settings.historyRetention 
+      : '30days';
+    
+    if (effectiveRetention === 'unlimited') {
       return;
     }
 
     const now = new Date();
     let cutoffDate;
 
-    switch (settings.historyRetention) {
+    switch (effectiveRetention) {
+      case '30days':
+        cutoffDate = new Date(now);
+        cutoffDate.setDate(now.getDate() - 30);
+        break;
       case '3months':
         cutoffDate = new Date(now);
         cutoffDate.setMonth(now.getMonth() - 3);

@@ -54,17 +54,30 @@ export default function SettingsScreen({ navigation }) {
     setSafeAreaKey(prev => prev + 1);
     if (importedSession) {
       await addSessionTemplate(importedSession);
+      // Enforce history retention after import (in case imported session has history)
+      await useStore.getState().enforceHistoryRetention();
       // No need to call initialize() - addSessionTemplate already saves and updates the store
       Alert.alert('Success', 'Session imported successfully!');
     }
   };
 
-  const handleHistoryRetentionChange = (retention) => {
+  const handleHistoryRetentionChange = async (retention) => {
     updateSettings({ historyRetention: retention });
+    // Enforce retention immediately when setting changes
+    await useStore.getState().enforceHistoryRetention();
   };
 
   const handleThemeModeChange = (mode) => {
     updateSettings({ themeMode: mode });
+  };
+
+  const handleRestorePurchases = () => {
+    // Dummy handler - will be replaced with real restore logic
+    Alert.alert(
+      'Restore Purchases',
+      'This would restore your previous purchases. Restore functionality will be implemented later.',
+      [{ text: 'OK' }]
+    );
   };
 
   const handleDeleteAllHistory = () => {
@@ -311,17 +324,29 @@ export default function SettingsScreen({ navigation }) {
       {/* Pro Features Section */}
       {renderSettingSection('Pro Features', (
         <View>
+          <TouchableOpacity
+            style={styles.goProButton}
+            onPress={() => navigation.navigate('GoPro')}
+          >
+            <Text style={styles.goProButtonText}>Go Pro</Text>
+          </TouchableOpacity>
+          <Text style={styles.settingDescription}>
+            {settings.isProUser 
+              ? 'Pro tier: Unlimited sessions, activities, custom categories, and full history retention.'
+              : 'Free tier: Up to 5 sessions, 20 activities, built-in categories only, and 30 days history.'}
+          </Text>
           {renderToggleSetting(
-            'Enable Pro Features',
-            'Toggle to test Pro features (custom categories, etc.)',
+            'Enable Pro Features (Developer)',
+            'Toggle Pro features for testing',
             settings.isProUser || false,
             () => handleToggle('isProUser')
           )}
-          <Text style={styles.settingDescription}>
-            {settings.isProUser 
-              ? 'Pro features enabled: You can create custom categories and import sessions with custom categories.'
-              : 'Free tier: Only built-in categories available. Custom categories from imports will be mapped to "Uncategorized".'}
-          </Text>
+          <TouchableOpacity
+            style={styles.restoreButton}
+            onPress={handleRestorePurchases}
+          >
+            <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+          </TouchableOpacity>
         </View>
       ))}
 
@@ -541,5 +566,28 @@ const getStyles = (colors) => StyleSheet.create({
   },
   deleteButtonText: {
     color: colors.error,
+  },
+  goProButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  goProButtonText: {
+    color: colors.textLight,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  restoreButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '500',
   },
 });
