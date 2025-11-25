@@ -28,7 +28,7 @@ Use Expo-managed workflow.
 - **Zustand** or similarly lightweight global state library
 - **AsyncStorage** (via `@react-native-async-storage/async-storage`) for all persistence
 - **expo-notifications** for all local notification scheduling
-- **expo-av** for audio cues
+- **expo-audio** for audio cues (replaced expo-av)
 - **expo-haptics** for vibration cues
 - **expo-keep-awake** to prevent screen sleep during running sessions (optional toggle)
 - **expo-document-picker** for import
@@ -388,9 +388,15 @@ List + create + edit + delete BlockTemplates.
 
 ## **4.3 Session Builder Screen**
 
-Editable list of blocks using a draggable list.
+Editable list of blocks with up/down arrows for reordering.
 Add from library or create custom.
 Shows total duration and block count.
+
+**Features:**
+
+- **Autosave**: Changes to existing sessions are automatically saved with toast notifications
+- **Icon Controls**: Edit (pencil), Duplicate (copy), and Delete (close) icons for quick actions
+- **Floating Add Buttons**: Add Activity, Add Rest, and Add Transition buttons float at bottom with proper scroll padding
 
 ---
 
@@ -403,8 +409,11 @@ Handles:
 - audio cues, haptics
 - play/pause
 - prev/next block
-- “skip”
+- "skip"
 - completion modal
+- **Full-screen mode**: Bottom navigation hidden during session run
+- **Back button handler**: Device back button stops session (same as Stop button)
+- **Safe area support**: Proper spacing to prevent overlap with system UI
 
 ### **History creation**
 
@@ -527,18 +536,13 @@ Provide a one-tap jump straight into the most relevant session for today.
 1. Determine today’s weekday (ISO: 1=Mon … 7=Sun)
 2. Gather all sessions where `scheduledDaysOfWeek` includes today
 
-### Scenario A — Exactly one scheduled session
+### Scenario A — One or more scheduled sessions
 
-Use that session always (even if already completed today).
+- If exactly one scheduled session: Show one button for that session
+- If multiple scheduled sessions: Show a separate button for each scheduled session (sorted alphabetically)
+- Always show scheduled sessions, even if already completed today
 
-### Scenario B — Multiple scheduled sessions
-
-1. Check today’s history entries
-2. Remove scheduled sessions already completed
-3. If ≥1 uncompleted → choose deterministically (alphabetical or by creation date)
-4. If all completed → choose deterministic fallback among scheduled ones
-
-### Scenario C — No scheduled sessions
+### Scenario B — No scheduled sessions
 
 Use most recently completed session (only if its SessionTemplate still exists).
 
@@ -550,11 +554,11 @@ Show a placeholder:
 
 ### UI
 
-- Large button: **“Quick start: {SessionName}”**
+- One or more buttons: **"Quick start: {SessionName}"** (one button per scheduled session)
 - Subtext:
 
-  - “Today’s scheduled session”
-  - or “Last used session”
+  - "Today's scheduled session" (or "Today's scheduled sessions" if multiple)
+  - or "Last used session" (when no scheduled sessions)
 
 Tap → Immediately:
 
@@ -617,49 +621,19 @@ Empty state:
 
 ---
 
-# **12. Empty State for Entire Home Screen**
+# **12. Pricing & Plans (Free vs Pro)**
 
-If no sessions + no history:
-
-- Quick Start → “Create a session”
-- Streaks → placeholder
-- This Week → zeros
-- Recent Activity → placeholder
-
----
-
-# **13. Visual / UX Notes**
-
-- Vertical scrolling cards
-- Rounded corners, padded cards
-- Works with light/dark mode
-- Make key numbers prominent
-
----
-
-# **14. Suggested Implementation Milestones**
-
-Milestone 1: Data + Builder
-Milestone 2: Run Session
-Milestone 3: Notifications + Sharing
-Milestone 4: Home Dashboard & History
-
-12. Pricing & Plans (Free vs Pro)
-
-(Paste this directly into your spec — it is complete and self-contained.)
-
-Overview
+## **12.1 Overview**
 
 The app uses a two-tier model:
 
-Free Tier
-
-Pro Tier (unlocks all advanced functionality)
+- **Free Tier**
+- **Pro Tier** (unlocks all advanced functionality)
 
 Users may upgrade via in-app purchases through the App Store / Play Store.
 Pro may be purchased as a monthly subscription, yearly subscription, or lifetime one-time unlock.
 
-12.1 Free Tier — Features & Limits
+## **12.2 Free Tier — Features & Limits**
 
 The Free tier provides a fully functional timer app with reasonable limits designed for casual users.
 
@@ -719,7 +693,7 @@ Only keeps last 30 days of session history
 
 Streaks and stats calculated only from this window
 
-12.2 Pro Tier — Features
+## **12.3 Pro Tier — Features**
 
 Pro unlocks advanced capability intended for trainers, tutors, therapists, coaches, and power users.
 
@@ -784,7 +758,8 @@ Multi-device sync
 
 These do not need implementation now — this section simply future-proofs Pro.
 
-12.3 Pro Pricing
+## **12.4 Pro Pricing**
+
 Subscription Options
 
 $0.99 / month
@@ -805,7 +780,8 @@ Monthly → Yearly
 Yearly → Lifetime
 Store rules manage pro-rated pricing.
 
-12.4 Upgrade Advertising (UI Requirements)
+## **12.5 Upgrade Advertising (UI Requirements)**
+
 In-app Upgrade Screen
 
 Provide a dedicated “Go Pro” screen accessible via:
@@ -840,7 +816,8 @@ On the Activities screen:
 
 These are unobtrusive text (small, gray), to avoid surprise limits.
 
-12.5 Import/Export Behavior Under Pricing System
+## **12.6 Import/Export Behavior Under Pricing System**
+
 Import
 
 Remains free for all users.
@@ -856,7 +833,7 @@ Locked behind Pro.
 If a free user tries to export:
 → Show Pro upsell modal.
 
-12.6 Data Model Additions
+## **12.7 Data Model Additions**
 
 Extend Settings:
 isProUser: boolean // updated by purchase/restore logic
@@ -864,7 +841,8 @@ customCategories: string[] // only editable in Pro
 
 No other core data models require changes for monetization.
 
-12.7 Handling Exceeding Limits
+## **12.8 Handling Exceeding Limits**
+
 Sessions Limit (5)
 
 When a free user tries to create the 6th session:
@@ -887,7 +865,7 @@ When a free user taps “Add Category”:
 
 Show Pro upgrade modal instead of opening creation screen
 
-12.8 Restore Purchases
+## **12.9 Restore Purchases**
 
 Provide a “Restore Purchases” button in Settings for:
 
@@ -895,9 +873,11 @@ iOS users (required by Apple)
 
 Android users (optional but recommended)
 
-12.9 Offline Behavior
+## **12.10 Offline Behavior**
 
 Purchases should be cached locally via persistent storage so Pro features remain available offline once unlocked.
+
+---
 
 # **13. Downgrade Behavior (When Pro Expires or Subscription is Canceled)**
 
@@ -914,7 +894,7 @@ This behavior matches the standard used by major productivity apps (Notion, Todo
 
 ---
 
-# **13.1 General Principles**
+## **13.1 General Principles**
 
 1. **Users never lose data because of a downgrade.**
    All sessions, activities, categories, and history remain intact.
@@ -931,7 +911,7 @@ This behavior matches the standard used by major productivity apps (Notion, Todo
 
 ---
 
-# **13.2 Behavior When User Has More Items Than Free Limits Allow**
+## **13.2 Behavior When User Has More Items Than Free Limits Allow**
 
 If the user downgrades and currently has:
 
@@ -1034,7 +1014,7 @@ Retention enforcement should occur:
 
 ---
 
-# **13.3 Editing Restrictions After Downgrade**
+## **13.3 Editing Restrictions After Downgrade**
 
 ### **Sessions that use custom categories**
 
@@ -1060,7 +1040,7 @@ But:
 
 ---
 
-# **13.4 Import/Export After Downgrade**
+## **13.4 Import/Export After Downgrade**
 
 ### **Import**
 
@@ -1077,7 +1057,7 @@ Attempting to export opens Pro modal.
 
 ---
 
-# **13.5 UI Indicators for Over-Limit Settings**
+## **13.5 UI Indicators for Over-Limit Settings**
 
 When user is Free and over the limits:
 
@@ -1103,7 +1083,7 @@ PT – Knee Mobility 🔒
 
 ---
 
-# **13.6 State Model Changes**
+## **13.6 State Model Changes**
 
 No model changes needed beyond:
 
@@ -1115,7 +1095,7 @@ But the UI must respond to `isProUser` toggling _at runtime_.
 
 ---
 
-# **13.7 Summary of Downgrade Rules**
+## **13.7 Summary of Downgrade Rules**
 
 **Users never lose data.**
 
@@ -1141,3 +1121,37 @@ This ensures:
 - No surprise punishments
 - Very clear Pro value
 - Maximum long-term goodwill
+
+---
+
+# **14. Empty State for Entire Home Screen**
+
+If no sessions + no history:
+
+- Quick Start → "Create a session"
+- Streaks → placeholder
+- This Week → zeros
+- Recent Activity → placeholder
+
+---
+
+# **15. Visual / UX Notes**
+
+- Vertical scrolling cards
+- Rounded corners, padded cards
+- Works with light/dark mode
+- Make key numbers prominent
+- Icon buttons for Edit, Duplicate, Delete in Session Builder
+- Toast notifications for autosave feedback
+- Safe area handling for all screens
+- Bottom tab bar hidden during RunSession screen
+
+---
+
+# **16. Suggested Implementation Milestones**
+
+Milestone 1: Data + Builder
+Milestone 2: Run Session
+Milestone 3: Notifications + Sharing
+Milestone 4: Home Dashboard & History
+Milestone 5: Pro/Free Tier System

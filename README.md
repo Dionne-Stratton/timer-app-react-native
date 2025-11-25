@@ -7,18 +7,30 @@ A cross-platform mobile timer application built with React Native and Expo. Crea
 ### Core Functionality
 - **Activity Library**: Create and manage reusable activity blocks with categories (Exercise, Study, Work, Household, Creative, and custom categories for Pro users)
 - **Session Builder**: Assemble activities, rest periods, and transitions into ordered sessions with custom scheduling
+  - **Autosave**: Changes to existing sessions are automatically saved with toast notifications
+  - **Icon Controls**: Edit (pencil), Duplicate (copy), and Delete (close) icons for quick actions
 - **Timer System**: Run sessions with pre-countdown, block countdown, and completion tracking
+  - **Full-screen Mode**: Bottom navigation hidden during session run
+  - **Back Button Handler**: Device back button stops session (same as Stop button)
+  - **Safe Area Support**: Proper spacing to prevent overlap with system UI
 - **Session History**: Track completed sessions with streaks, weekly stats, and recent activity
-- **Quick Start**: One-tap access to today's scheduled session or most recently used session
+- **Quick Start**: Multiple buttons for all sessions scheduled on the same day (one button per session)
 - **Search & Filter**: Search sessions by name and filter activities by category
 
 ### User Experience
 - **Audio & Haptic Feedback**: Sound cues and vibration for block transitions and completion
 - **Background Notifications**: Local notifications keep you informed even when the app is in the background
-- **Session Sharing**: Export and import sessions via `.bztimer` files
+- **Session Sharing**: Export and import sessions via `.bztimer` files (Pro feature for export)
 - **History Management**: Automatic retention policies (unlimited, 3/6/12 months) with manual controls
 - **Dark Mode Support**: Full dark mode with system preference detection (Light, Dark, or System)
-- **Pro Features**: Custom categories for activities (Free tier uses built-in categories only)
+- **Pro Features**: 
+  - Custom categories for activities (Free tier uses built-in categories only)
+  - Unlimited sessions (Free: 5 max)
+  - Unlimited activities (Free: 20 max)
+  - Full history retention (Free: 30 days)
+  - Session export capability
+- **Toast Notifications**: Visual feedback for autosave actions
+- **Safe Area Handling**: Proper spacing on all screens to prevent system UI overlap
 
 ### Data Management
 - **Fully Offline**: All data stored locally using AsyncStorage
@@ -84,7 +96,9 @@ timer-app-react-native/
 ├── src/
 │   ├── components/       # Reusable components
 │   │   ├── AddBlockModal.js      # Modal for adding activities from library
-│   │   └── AddRestTransitionModal.js  # Quick form for rest/transition blocks
+│   │   ├── AddRestTransitionModal.js  # Quick form for rest/transition blocks
+│   │   ├── ProUpgradeModal.js    # Modal for Pro upgrade prompts
+│   │   └── Toast.js               # Toast notification component
 │   │
 │   ├── navigation/       # Navigation configuration
 │   │   └── AppNavigator.js
@@ -97,7 +111,8 @@ timer-app-react-native/
 │   │   ├── RunSessionScreen.js     # Main timer screen
 │   │   ├── BlockLibraryScreen.js   # Activity block library
 │   │   ├── BlockEditScreen.js      # Create/edit blocks
-│   │   └── SettingsScreen.js       # App settings
+│   │   ├── SettingsScreen.js       # App settings
+│   │   └── GoProScreen.js          # Pro upgrade screen
 │   │
 │   ├── services/         # Business logic services
 │   │   ├── storage.js           # AsyncStorage abstraction
@@ -225,7 +240,8 @@ Bottom Tab Navigator
    - **"+ Add Rest"**: Quick form to add rest period (not saved to library)
    - **"+ Add Transition"**: Quick form to add transition (not saved to library)
 6. Reorder blocks using up/down arrows
-7. Tap **Save**
+7. Edit, duplicate, or delete blocks using icon buttons
+8. Tap **Save** (for new sessions) or changes auto-save (for existing sessions)
 
 ### Running a Session
 
@@ -236,6 +252,7 @@ Bottom Tab Navigator
 5. Timer runs automatically with audio/haptic cues
 6. Use controls to pause, skip blocks, or stop
 7. Session completes automatically when all blocks finish
+8. **Note**: Bottom navigation is hidden during session run. Use device back button to stop session.
 
 ### Managing Activities
 
@@ -250,7 +267,7 @@ Bottom Tab Navigator
 ### Sharing Sessions
 
 1. From Sessions list, tap the three dots (⋮) on a session
-2. Select **"Share"**
+2. Select **"Share"** (Pro feature - Free users will see upgrade prompt)
 3. Choose export method (save to device, share via app, etc.)
 4. File is saved as `.bztimer` format
 5. **Note**: Custom categories are preserved for Pro users; Free users will see custom categories mapped to "Uncategorized"
