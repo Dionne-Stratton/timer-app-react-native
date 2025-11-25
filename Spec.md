@@ -1155,3 +1155,246 @@ Milestone 2: Run Session
 Milestone 3: Notifications + Sharing
 Milestone 4: Home Dashboard & History
 Milestone 5: Pro/Free Tier System
+
+Testing:
+
+1. Set up the test environment
+
+“Set up a test environment for this Expo React Native app using Jest and @testing-library/react-native.
+
+Requirements:
+
+Unit tests for pure logic and store behavior.
+
+Component tests for key screens.
+
+Mock all Expo + RN native bits: expo-notifications, expo-av, expo-haptics, expo-keep-awake, AsyncStorage, and react-navigation.
+
+Use Jest fake timers where needed for timers.
+
+Add npm scripts: test and test:watch.”
+
+2. Unit tests for pure logic helpers
+
+“Write unit tests for the pure helper functions in types (or wherever they live), including at least:
+
+getBlockDurationSeconds
+
+getBlockTimingSummary
+
+getSessionTotalDuration
+
+Any date / streak / history helpers (current streak, longest streak, weekly stats).
+
+Any Quick Start selection helper if one exists (or extract that logic into a pure function and then test it).
+
+Cover edge-cases (0 reps, weird durations, empty sessions, history with gaps in dates, etc.).”
+
+3. Tests for the global store (Zustand)
+
+“Write Jest unit tests for the Zustand store logic, without rendering components.
+
+Things to test:
+
+startSession(sessionId)
+
+Loads the correct session.
+
+Sets runningSession, currentIndex, remainingSeconds, elapsedSecondsInSession, etc.
+
+tickTimer()
+
+Decrements remaining time.
+
+Moves to the next block when a block ends.
+
+Marks the session as complete when the last block ends.
+
+nextBlock() / previousBlock()
+
+Correctly update currentIndex and remainingSeconds.
+
+stopSession()
+
+Clears runningSession and resets relevant state.
+
+History functions:
+
+Adding a history entry on completion.
+
+Retention enforcement (free vs pro, 30 days vs unlimited).
+
+Pro/free logic:
+
+Blocking session creation when at the free limit.
+
+Blocking activity creation when at the free limit.
+
+Locking custom categories and export for free users.
+
+isProUser toggling and how it changes those checks.”
+
+4. RunSessionScreen behavior tests
+
+“Using @testing-library/react-native, write tests for RunSessionScreen that focus on logic, not styling:
+
+When given a valid sessionId and no existing runningSession, it calls startSession and renders the correct first block.
+
+When there is no sessionId and no runningSession, it should not render UI and should navigate back (mock navigation and assert calls).
+
+Simulate isPreCountdown true and count down to 0 → verify that it transitions to normal running mode. Use fake timers.
+
+While running:
+
+tick down the timer and ensure remainingSeconds changes.
+
+when current block ends, it moves to the next block and triggers the block-complete cue (mock cueService).
+
+when the last block ends, it opens the completion modal.
+
+Pressing Stop:
+
+Shows confirmation Alert (mock Alert).
+
+On confirming, calls stopSession, cancels notifications, and calls the correct navigation (see below).
+
+Hardware back (mock BackHandler):
+
+While a session is running, it should trigger the same Stop logic.
+
+After session is stopped/completed, back should fall through normally.”
+
+5. Navigation tests for the bug you just fixed
+
+“Write tests around navigation behavior to prevent regression of the ‘ghost RunSession screen’ bug.
+
+Cases to cover (mock navigation):
+
+Started from Sessions tab:
+
+Navigate to RunSessionScreen with a sessionId and no returnTo.
+
+On Stop or completion, navigateBack should call navigation.reset with a single route: SessionsList.
+
+There must be no way to get back to RunSessionScreen by pressing back from SessionsList.
+
+Started from Home Quick Start:
+
+Navigate to RunSessionScreen with returnTo: { tab: 'Home' }.
+
+On Stop or completion, navigateBack should:
+
+reset stack to SessionsList,
+
+then ask the parent navigator to navigate to Home.
+
+Assert both calls happen in order.
+
+These tests should directly assert the exact navigation calls we expect, so if someone changes navigateBack later, the tests fail.”
+
+6. Quick Start logic tests
+
+“Write unit tests for the Quick Start logic. If it isn’t isolated yet, extract it into a pure function like:
+
+getQuickStartSession(sessions, history, today)
+and test that:
+
+If there are scheduled sessions today, it uses those.
+
+If exactly one scheduled session today → use that one.
+
+If multiple scheduled sessions today:
+
+Exclude scheduled sessions already completed today.
+
+If multiple remain, pick deterministically (e.g., by name or ID).
+
+If all are completed, still return one deterministically (no empty state).
+
+If no scheduled sessions today:
+
+Fall back to most recently completed session whose template still exists.
+
+If none exist → return null / undefined to show the ‘no quick start’ message.”
+
+7. History & dashboard stats tests
+
+“Write unit tests for the history and Home/dashboard calculations, using pure functions where possible.
+
+Test:
+
+Current streak calculation:
+
+No history → 0
+
+Non-consecutive days → correct streaks
+
+Consecutive days including today → correct current streak
+
+Longest streak across all history.
+
+Weekly stats (‘This Week’):
+
+Correctly counts number of sessions and total minutes within the current week window.
+
+Handles week with no entries.
+
+Recent activity list:
+
+Returns last N entries in descending date order.
+
+Handles fewer than N entries.
+
+Also test that history pruning for free users correctly removes entries older than 30 days and leaves newer ones.”
+
+8. Export / import tests
+
+“Write unit tests (or integration-style tests) for session export/import:
+
+Export:
+
+Given a SessionTemplate, ensure the serialized JSON contains everything needed to reconstruct it.
+
+Verify that IDs are handled correctly (either kept or replaced on import, per spec).
+
+Import:
+
+Valid JSON → parsed, validated, and saved as a new SessionTemplate with a new ID.
+
+Invalid JSON (missing name, missing items, invalid mode, etc.) → import fails with an appropriate error.
+
+Mock the document picker and sharing APIs so tests don’t depend on real files.”
+
+9. Pro vs Free behavior tests
+
+“Write tests for Pro/free limits and locking behavior.
+
+Free plan limits:
+
+Attempting to create a 6th session → blocked, Pro modal triggered.
+
+Attempting to create a 21st activity → blocked, Pro modal triggered.
+
+Custom category creation/editing blocked on free, with modal.
+
+Export action blocked on free, with modal.
+
+Pro plan:
+
+With isProUser true, none of those actions are blocked.
+
+Downgrade behavior:
+
+If a user has >5 sessions and downgrades:
+
+They can still use existing sessions.
+
+They cannot create new ones.
+
+If they have >20 activities and downgrade:
+
+Existing activities still usable.
+
+Cannot create new ones.
+
+We don’t need to implement real purchases yet; just rely on isProUser in tests.”

@@ -60,26 +60,40 @@ export default function BlockEditScreen({ navigation, route }) {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [proModalVisible, setProModalVisible] = useState(false);
   
+  // Custom category management state
+  const [showCustomCategoryDropdown, setShowCustomCategoryDropdown] = useState(false);
+  const [showEditCategoryModal, setShowEditCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  
+  // Separate built-in and custom categories
+  const builtInCategories = React.useMemo(() => {
+    return [...BUILT_IN_CATEGORIES];
+  }, []);
+
+  const customCategories = React.useMemo(() => {
+    return settings.customCategories || [];
+  }, [settings.customCategories]);
+  
   // Get all available categories (built-in + custom, with custom shown even if not Pro)
   const allCategories = React.useMemo(() => {
-    const categories = [...BUILT_IN_CATEGORIES];
-    // Show custom categories even for free users (they'll be locked)
-    if (settings.customCategories) {
-      categories.push(...settings.customCategories);
-    }
-    return categories;
-  }, [settings.customCategories]);
+    return [...builtInCategories, ...customCategories];
+  }, [builtInCategories, customCategories]);
   
   // Check if a category is custom (not built-in)
   const isCustomCategory = (cat) => {
     return !BUILT_IN_CATEGORIES.includes(cat);
   };
   
+  // Filter to only activities (for checking category usage)
+  const activities = blockTemplates.filter(template => template.type === BlockType.ACTIVITY);
+  
   const [minutes, setMinutes] = useState(0);
   const [seconds, setSeconds] = useState(30);
   const [reps, setReps] = useState(10);
   const [perRepSeconds, setPerRepSeconds] = useState(5);
   const [notes, setNotes] = useState('');
+  const [url, setUrl] = useState('');
   
   // Initialize and update state when existingBlock changes
   useEffect(() => {
@@ -95,6 +109,7 @@ export default function BlockEditScreen({ navigation, route }) {
         setPerRepSeconds(existingBlock.perRepSeconds || 5);
       }
       setNotes(existingBlock.notes || '');
+      setUrl(existingBlock.url || '');
     }
   }, [existingBlock]);
   const [showUpdateAllModal, setShowUpdateAllModal] = useState(false);
@@ -167,6 +182,7 @@ export default function BlockEditScreen({ navigation, route }) {
         ? { durationSeconds }
         : { reps, perRepSeconds }),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
+      ...(url.trim() ? { url: url.trim() } : {}),
     };
 
     try {
@@ -390,6 +406,147 @@ export default function BlockEditScreen({ navigation, route }) {
     setShowAddCategoryModal(false);
   };
 
+  const handleEditCategory = (categoryName) => {
+    // Check if any activities use this category
+    const activitiesUsingCategory = activities.filter(
+      (activity) => (activity.category || 'Uncategorized') === categoryName
+    );
+
+    if (activitiesUsingCategory.length > 0) {
+      Alert.alert(
+        'Edit Category',
+        `Editing this category will update all ${activitiesUsingCategory.length} activit${activitiesUsingCategory.length === 1 ? 'y' : 'ies'} using it. Continue?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Continue',
+            onPress: () => {
+              setEditingCategory(categoryName);
+              setEditCategoryName(categoryName);
+              setShowEditCategoryModal(true);
+            },
+          },
+        ]
+      );
+    } else {
+      // No activities using it, proceed directly
+      setEditingCategory(categoryName);
+      setEditCategoryName(categoryName);
+      setShowEditCategoryModal(true);
+    }
+  };
+
+  const handleSaveEditCategory = async () => {
+    if (!editCategoryName.trim()) {
+      Alert.alert('Validation Error', 'Category name cannot be empty.');
+      return;
+    }
+    const trimmedName = editCategoryName.trim();
+    
+    // Check if new name already exists
+    if (trimmedName === editingCategory) {
+      setShowEditCategoryModal(false);
+      setEditingCategory(null);
+      setEditCategoryName('');
+      return;
+    }
+    
+    if (BUILT_IN_CATEGORIES.includes(trimmedName) || customCategories.includes(trimmedName)) {
+      Alert.alert('Validation Error', 'Category already exists.');
+      return;
+    }
+
+    // Update category name in settings
+    const updated = customCategories.map((cat) =>
+      cat === editingCategory ? trimmedName : cat
+    );
+    updateSettings({ customCategories: updated });
+
+    // Update all activities using this category
+    const activitiesUsingCategory = activities.filter(
+      (activity) => (activity.category || 'Uncategorized') === editingCategory
+    );
+    for (const activity of activitiesUsingCategory) {
+      await updateBlockTemplate(activity.id, { category: trimmedName });
+    }
+
+    // Update current category if it was the one being edited
+    if (category === editingCategory) {
+      setCategory(trimmedName);
+    }
+
+    setShowEditCategoryModal(false);
+    setEditingCategory(null);
+    setEditCategoryName('');
+    // Keep dropdown open after editing
+  };
+
+  const handleDeleteCategory = (categoryName) => {
+    // Check if any activities use this category
+    const activitiesUsingCategory = activities.filter(
+      (activity) => (activity.category || 'Uncategorized') === categoryName
+    );
+
+    if (activitiesUsingCategory.length > 0) {
+      Alert.alert(
+        'Delete Category',
+        `Deleting this category will make ${activitiesUsingCategory.length} activit${activitiesUsingCategory.length === 1 ? 'y' : 'ies'} uncategorized. Continue?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              // Remove category
+              const updated = customCategories.filter((cat) => cat !== categoryName);
+              updateSettings({ customCategories: updated });
+              
+              // Update all activities to be uncategorized
+              for (const activity of activitiesUsingCategory) {
+                await updateBlockTemplate(activity.id, { category: null });
+              }
+              
+              // If this category was selected, reset to Uncategorized
+              if (category === categoryName) {
+                setCategory('Uncategorized');
+              }
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Delete Category',
+        `Are you sure you want to delete "${categoryName}"?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              const updated = customCategories.filter((cat) => cat !== categoryName);
+              updateSettings({ customCategories: updated });
+              // If this category was selected, reset to Uncategorized
+              if (category === categoryName) {
+                setCategory('Uncategorized');
+              }
+            },
+          },
+        ]
+      );
+    }
+    // Keep dropdown open after deleting
+  };
+
   const renderModeButton = (blockMode, label) => (
     <TouchableOpacity
       style={[
@@ -429,16 +586,87 @@ export default function BlockEditScreen({ navigation, route }) {
           <View style={styles.section}>
             <Text style={styles.label}>Category *</Text>
             <View style={styles.categoryContainer}>
-              {allCategories.map((cat) => {
-                const isCustom = isCustomCategory(cat);
-                const isLocked = isCustom && !settings.isProUser;
+              {/* Custom Categories Dropdown - pill button */}
+              {customCategories.length > 0 && (() => {
+                const selectedCustomCategory = customCategories.find(cat => category === cat);
+                const displayText = selectedCustomCategory || 'Custom';
+                return (
+                  <View style={styles.customCategoryPillContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.categoryChip,
+                        selectedCustomCategory && styles.categoryChipActive,
+                      ]}
+                      onPress={() => setShowCustomCategoryDropdown(!showCustomCategoryDropdown)}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          selectedCustomCategory && styles.categoryChipTextActive,
+                        ]}
+                      >
+                        {displayText} {showCustomCategoryDropdown ? '▼' : '▶'}
+                      </Text>
+                    </TouchableOpacity>
+                    {showCustomCategoryDropdown && (
+                      <View style={styles.customCategoryDropdownAbsolute}>
+                        {customCategories.map((cat, index) => (
+                          <View 
+                            key={cat} 
+                            style={[
+                              styles.customCategoryDropdownItem,
+                              index === customCategories.length - 1 && styles.customCategoryDropdownItemLast
+                            ]}
+                          >
+                            <TouchableOpacity
+                              style={[
+                                styles.customCategoryDropdownItemContent,
+                                category === cat && styles.customCategoryDropdownItemContentActive,
+                              ]}
+                              onPress={() => {
+                                setCategory(cat);
+                                setShowCustomCategoryDropdown(false);
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  styles.customCategoryDropdownItemText,
+                                  category === cat && styles.customCategoryDropdownItemTextActive,
+                                ]}
+                              >
+                                {cat}
+                              </Text>
+                            </TouchableOpacity>
+                            <View style={styles.customCategoryActions}>
+                              <TouchableOpacity
+                                style={styles.customCategoryActionButton}
+                                onPress={() => handleEditCategory(cat)}
+                              >
+                                <Text style={styles.customCategoryActionButtonText}>✏️</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.customCategoryActionButton}
+                                onPress={() => handleDeleteCategory(cat)}
+                              >
+                                <Text style={styles.customCategoryActionButtonText}>🗑️</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
+              {/* Built-in categories as chips */}
+              {builtInCategories.map((cat) => {
+                const isLocked = false; // Built-in categories are never locked
                 return (
                   <TouchableOpacity
                     key={cat}
                     style={[
                       styles.categoryChip,
                       category === cat && styles.categoryChipActive,
-                      isLocked && styles.categoryChipLocked,
                     ]}
                     onPress={() => handleCategorySelect(cat)}
                     disabled={isLocked}
@@ -447,11 +675,9 @@ export default function BlockEditScreen({ navigation, route }) {
                       style={[
                         styles.categoryChipText,
                         category === cat && styles.categoryChipTextActive,
-                        isLocked && styles.categoryChipTextLocked,
                       ]}
                     >
                       {cat}
-                      {isLocked && ' 🔒'}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -562,6 +788,23 @@ export default function BlockEditScreen({ navigation, route }) {
             textAlignVertical="top"
           />
         </View>
+
+        {/* URL (Optional) - Only for activities */}
+        {(!isEditingSessionInstance || existingBlock?.type === BlockType.ACTIVITY) && (
+          <View style={styles.section}>
+            <Text style={styles.label}>URL (Optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={url}
+              onChangeText={setUrl}
+              placeholder="https://example.com"
+              placeholderTextColor={colors.textTertiary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+          </View>
+        )}
       </View>
       
       {/* Add Category Modal */}
@@ -595,6 +838,50 @@ export default function BlockEditScreen({ navigation, route }) {
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonSave]}
                 onPress={handleSaveCategory}
+              >
+                <Text style={[styles.modalButtonText, styles.modalButtonTextSave]}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Category Modal */}
+      <Modal
+        visible={showEditCategoryModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setShowEditCategoryModal(false);
+          setEditingCategory(null);
+          setEditCategoryName('');
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Category</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editCategoryName}
+              onChangeText={setEditCategoryName}
+              placeholder="Category name"
+              placeholderTextColor={colors.textTertiary}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => {
+                  setShowEditCategoryModal(false);
+                  setEditingCategory(null);
+                  setEditCategoryName('');
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSave]}
+                onPress={handleSaveEditCategory}
               >
                 <Text style={[styles.modalButtonText, styles.modalButtonTextSave]}>Save</Text>
               </TouchableOpacity>
@@ -901,5 +1188,66 @@ const getStyles = (colors) => StyleSheet.create({
     color: colors.textLight,
     fontSize: 16,
     fontWeight: '600',
+  },
+  customCategoryPillContainer: {
+    position: 'relative',
+  },
+  customCategoryDropdownAbsolute: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    marginTop: 4,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minWidth: 200,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  customCategoryDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  customCategoryDropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+  customCategoryDropdownItemContent: {
+    flex: 1,
+    paddingVertical: 4,
+  },
+  customCategoryDropdownItemContentActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  customCategoryDropdownItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  customCategoryDropdownItemTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  customCategoryActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginLeft: 8,
+  },
+  customCategoryActionButton: {
+    padding: 6,
+    minWidth: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customCategoryActionButtonText: {
+    fontSize: 16,
   },
 });

@@ -40,19 +40,26 @@ export default function AddBlockModal({ visible, onClose, onAddBlock, navigation
   const [newCategoryName, setNewCategoryName] = useState('');
   const [proModalVisible, setProModalVisible] = useState(false);
   const [proModalLimitType, setProModalLimitType] = useState(null);
+  
+  // Custom category dropdown state (for filtering only)
+  const [showCustomCategoryDropdown, setShowCustomCategoryDropdown] = useState(false);
 
   // Filter to only activities (rest/transition are not in library)
   const activities = blockTemplates.filter(template => template.type === BlockType.ACTIVITY);
   
+  // Separate built-in and custom categories
+  const builtInCategories = React.useMemo(() => {
+    return [...BUILT_IN_CATEGORIES];
+  }, []);
+
+  const customCategories = React.useMemo(() => {
+    return settings.customCategories || [];
+  }, [settings.customCategories]);
+  
   // Get all available categories (built-in + custom, with custom shown even if not Pro)
   const allCategories = React.useMemo(() => {
-    const categories = [...BUILT_IN_CATEGORIES];
-    // Show custom categories even for free users (they'll be locked)
-    if (settings.customCategories) {
-      categories.push(...settings.customCategories);
-    }
-    return categories;
-  }, [settings.customCategories]);
+    return [...builtInCategories, ...customCategories];
+  }, [builtInCategories, customCategories]);
   
   // Check if a category is custom (not built-in)
   const isCustomCategory = (cat) => {
@@ -299,7 +306,31 @@ export default function AddBlockModal({ visible, onClose, onAddBlock, navigation
                     All
                   </Text>
                 </TouchableOpacity>
-                {allCategories.map((category) => (
+                {/* Custom Categories Dropdown - pill button */}
+                {customCategories.length > 0 && (() => {
+                  const selectedCustomCategory = customCategories.find(cat => filterCategory === cat);
+                  const displayText = selectedCustomCategory || 'Custom';
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.filterButton,
+                        selectedCustomCategory && styles.filterButtonActive,
+                      ]}
+                      onPress={() => setShowCustomCategoryDropdown(!showCustomCategoryDropdown)}
+                    >
+                      <Text
+                        style={[
+                          styles.filterButtonText,
+                          selectedCustomCategory && styles.filterButtonTextActive,
+                        ]}
+                      >
+                        {displayText} {showCustomCategoryDropdown ? '▼' : '▶'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })()}
+                {/* Only show built-in categories as pills */}
+                {builtInCategories.map((category) => (
                   <TouchableOpacity
                     key={category}
                     style={[
@@ -319,6 +350,36 @@ export default function AddBlockModal({ visible, onClose, onAddBlock, navigation
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+              {/* Custom Categories Dropdown - rendered outside ScrollView */}
+              {customCategories.length > 0 && showCustomCategoryDropdown && (
+                <View style={styles.customCategoryDropdownContainer}>
+                  <View style={styles.customCategoryDropdown}>
+                    {customCategories.map((category, index) => (
+                      <TouchableOpacity
+                        key={category}
+                        style={[
+                          styles.customCategoryDropdownItem,
+                          filterCategory === category && styles.customCategoryDropdownItemActive,
+                          index === customCategories.length - 1 && styles.customCategoryDropdownItemLast,
+                        ]}
+                        onPress={() => {
+                          setFilterCategory(category);
+                          setShowCustomCategoryDropdown(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.customCategoryDropdownItemText,
+                            filterCategory === category && styles.customCategoryDropdownItemTextActive,
+                          ]}
+                        >
+                          {category}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
             <FlatList
               data={filteredTemplates}
@@ -573,6 +634,7 @@ export default function AddBlockModal({ visible, onClose, onAddBlock, navigation
             </View>
           </View>
         </Modal>
+
       </View>
 
       {/* Pro Upgrade Modal */}
@@ -663,7 +725,9 @@ const getStyles = (colors) => StyleSheet.create({
   },
   filterWrapper: {
     paddingVertical: 8,
+    paddingBottom: 12,
     minHeight: 56,
+    position: 'relative',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -671,6 +735,7 @@ const getStyles = (colors) => StyleSheet.create({
     gap: 8,
     alignItems: 'center',
     minHeight: 40,
+    paddingBottom: 4,
   },
   filterButton: {
     paddingHorizontal: 12,
@@ -970,6 +1035,47 @@ const getStyles = (colors) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.textLight,
+  },
+  customCategoryDropdownContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 16,
+    marginTop: 4,
+    zIndex: 1000,
+  },
+  customCategoryDropdown: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minWidth: 150,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  customCategoryDropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  customCategoryDropdownItemActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  customCategoryDropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+  customCategoryDropdownItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  customCategoryDropdownItemTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
 
