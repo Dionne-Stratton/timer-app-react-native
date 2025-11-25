@@ -21,10 +21,12 @@ import { useTheme } from '../theme';
 import ProUpgradeModal from '../components/ProUpgradeModal';
 import Toast from '../components/Toast';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SessionBuilderScreen({ navigation, route }) {
   const { sessionId: routeSessionId } = route.params || {};
   const colors = useTheme();
+  const insets = useSafeAreaInsets();
   const sessionTemplates = useStore((state) => state.sessionTemplates);
   const settings = useStore((state) => state.settings);
   const addSessionTemplate = useStore((state) => state.addSessionTemplate);
@@ -62,22 +64,21 @@ export default function SessionBuilderScreen({ navigation, route }) {
     if (unsavedDraft) {
       // Use the existing draft's sessionId
       sessionId = unsavedDraft[0];
-      // Update route params to include this sessionId for future remounts
-      if (navigation) {
-        navigation.setParams({ sessionId });
-      }
     } else {
       // Generate a new sessionId
       if (!generatedSessionIdRef.current) {
         generatedSessionIdRef.current = generateId();
       }
       sessionId = generatedSessionIdRef.current;
-      // Update route params to include this sessionId
-      if (navigation) {
-        navigation.setParams({ sessionId });
-      }
     }
   }
+
+  // Update route params in useEffect to avoid setState during render
+  useEffect(() => {
+    if (sessionId && sessionId !== routeSessionId) {
+      navigation.setParams({ sessionId });
+    }
+  }, [sessionId, routeSessionId, navigation]);
 
   const existingSession =
     sessionId !== null && sessionId !== undefined
@@ -642,7 +643,11 @@ export default function SessionBuilderScreen({ navigation, route }) {
         onHide={() => setToastVisible(false)} 
       />
       
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView 
+        style={styles.content} 
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 120 + Math.max(insets.bottom, 0) }}
+      >
         {/* Session Name */}
         <View style={styles.section}>
           <Text style={styles.label}>Session Name *</Text>
