@@ -10,6 +10,7 @@ import {
   ScrollView,
   FlatList,
   Switch,
+  Modal,
 } from "react-native";
 import useStore from "../store";
 import {
@@ -45,6 +46,7 @@ export default function SessionBuilderScreen({ navigation, route }) {
   const deleteSessionDraft = useStore((state) => state.deleteSessionDraft);
   const [proModalVisible, setProModalVisible] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
+  const [discardModalVisible, setDiscardModalVisible] = useState(false);
   const saveTimeoutRef = useRef(null);
   const hasUnsavedChangesRef = useRef(false);
   const lastSavedRef = useRef(null); // Track last saved state to prevent redundant saves
@@ -469,16 +471,53 @@ export default function SessionBuilderScreen({ navigation, route }) {
   );
 
   useEffect(() => {
+    const headerStyles = {
+      headerRightContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+      },
+      discardButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+      },
+      discardButtonText: {
+        color: colors.error,
+        fontSize: 16,
+        fontWeight: "600",
+      },
+      saveButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+      },
+      saveButtonText: {
+        color: colors.textLight,
+        fontSize: 16,
+        fontWeight: "600",
+      },
+    };
+
     navigation.setOptions({
       headerRight: () =>
-        // Only show Save button for new sessions (not when editing existing sessions)
+        // Only show Save and Discard buttons for new sessions (not when editing existing sessions)
         isEditing ? null : (
-          <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-            <Text style={styles.saveButtonText}>Save</Text>
-          </TouchableOpacity>
+          <View style={headerStyles.headerRightContainer}>
+            <TouchableOpacity
+              onPress={() => setDiscardModalVisible(true)}
+              style={headerStyles.discardButton}
+            >
+              <Text style={headerStyles.discardButtonText}>Discard</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSave}
+              style={headerStyles.saveButton}
+            >
+              <Text style={headerStyles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
         ),
     });
-  }, [isEditing, sessionName, items, scheduledDaysOfWeek]);
+  }, [isEditing, sessionName, items, scheduledDaysOfWeek, navigation, colors]);
 
   const handleSave = async () => {
     if (!sessionName.trim()) {
@@ -530,6 +569,16 @@ export default function SessionBuilderScreen({ navigation, route }) {
   const handleProModalUpgrade = () => {
     setProModalVisible(false);
     navigation.getParent()?.navigate("Settings", { screen: "GoPro" });
+  };
+
+  const handleConfirmDiscard = () => {
+    // Delete the draft
+    if (sessionId) {
+      deleteSessionDraft(sessionId);
+    }
+    setDiscardModalVisible(false);
+    // Navigate back
+    navigation.goBack();
   };
 
   const handleAddBlock = (blockInstance) => {
@@ -910,6 +959,45 @@ export default function SessionBuilderScreen({ navigation, route }) {
         limitType="sessions"
         onUpgrade={handleProModalUpgrade}
       />
+
+      {/* Discard Confirmation Modal */}
+      <Modal
+        visible={discardModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDiscardModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Discard Session?</Text>
+            <Text style={styles.modalMessage}>
+              This will clear out this form and your current draft will not be
+              saved. Are you sure?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setDiscardModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleConfirmDiscard}
+              >
+                <Text
+                  style={[
+                    styles.modalButtonText,
+                    styles.modalButtonConfirmText,
+                  ]}
+                >
+                  Discard
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1180,5 +1268,70 @@ const getStyles = (colors) =>
       color: colors.textLight,
       fontSize: 16,
       fontWeight: "600",
+    },
+    headerRightContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    discardButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    discardButtonText: {
+      color: colors.error,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modalContent: {
+      backgroundColor: colors.cardBackground,
+      borderRadius: 16,
+      padding: 24,
+      width: "80%",
+      maxWidth: 400,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: colors.text,
+      marginBottom: 12,
+    },
+    modalMessage: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      marginBottom: 24,
+      lineHeight: 22,
+    },
+    modalButtons: {
+      flexDirection: "row",
+      gap: 12,
+    },
+    modalButton: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: "center",
+    },
+    modalButtonCancel: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    modalButtonConfirm: {
+      backgroundColor: colors.error,
+    },
+    modalButtonText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    modalButtonConfirmText: {
+      color: colors.textLight,
     },
   });

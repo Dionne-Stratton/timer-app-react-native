@@ -181,14 +181,20 @@ export default function BlockEditScreen({ navigation, route }) {
   ]);
 
   const handleSave = async () => {
-    // Validation
-    if (!label.trim()) {
+    // Check if editing a rest/transition block from session builder
+    const isRestOrTransitionFromSession =
+      isEditingSessionInstance &&
+      (existingBlock?.type === BlockType.REST ||
+        existingBlock?.type === BlockType.TRANSITION);
+
+    // Validation - skip label validation for rest/transition blocks
+    if (!isRestOrTransitionFromSession && !label.trim()) {
       Alert.alert("Validation Error", "Please enter a name for this activity.");
       return;
     }
 
     let durationSeconds = 0;
-    if (mode === BlockMode.DURATION) {
+    if (mode === BlockMode.DURATION || isRestOrTransitionFromSession) {
       durationSeconds = minutes * 60 + seconds;
       if (durationSeconds <= 0) {
         Alert.alert(
@@ -215,7 +221,10 @@ export default function BlockEditScreen({ navigation, route }) {
     }
 
     const blockData = {
-      label: label.trim(),
+      // For rest/transition blocks from session, preserve original label and mode
+      label: isRestOrTransitionFromSession
+        ? existingBlock?.label
+        : label.trim(),
       type: isEditingSessionInstance ? existingBlock?.type : BlockType.ACTIVITY, // Keep existing type for session instances
       category:
         isEditingSessionInstance && existingBlock?.type !== BlockType.ACTIVITY
@@ -223,8 +232,10 @@ export default function BlockEditScreen({ navigation, route }) {
           : category === "Uncategorized"
           ? null
           : category,
-      mode,
-      ...(mode === BlockMode.DURATION
+      // For rest/transition blocks from session, always use DURATION mode
+      mode: isRestOrTransitionFromSession ? BlockMode.DURATION : mode,
+      // For rest/transition blocks, only duration is allowed
+      ...(isRestOrTransitionFromSession || mode === BlockMode.DURATION
         ? { durationSeconds }
         : { reps, perRepSeconds }),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
@@ -634,20 +645,28 @@ export default function BlockEditScreen({ navigation, route }) {
     </TouchableOpacity>
   );
 
+  // Check if editing a rest/transition block from session builder
+  const isRestOrTransitionFromSession =
+    isEditingSessionInstance &&
+    (existingBlock?.type === BlockType.REST ||
+      existingBlock?.type === BlockType.TRANSITION);
+
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.content}>
-        {/* Name/Label */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Name *</Text>
-          <TextInput
-            style={styles.input}
-            value={label}
-            onChangeText={setLabel}
-            placeholder="e.g., Bicep curls"
-            placeholderTextColor={colors.textTertiary}
-          />
-        </View>
+        {/* Name/Label - Hidden for rest/transition blocks from session builder */}
+        {!isRestOrTransitionFromSession && (
+          <View style={styles.section}>
+            <Text style={styles.label}>Name *</Text>
+            <TextInput
+              style={styles.input}
+              value={label}
+              onChangeText={setLabel}
+              placeholder="e.g., Bicep curls"
+              placeholderTextColor={colors.textTertiary}
+            />
+          </View>
+        )}
 
         {/* Category Selection - Only for activities */}
         {(!isEditingSessionInstance ||
@@ -804,17 +823,19 @@ export default function BlockEditScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Mode Selection */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Mode *</Text>
-          <View style={styles.modeButtonContainer}>
-            {renderModeButton(BlockMode.DURATION, "Duration")}
-            {renderModeButton(BlockMode.REPS, "Reps")}
+        {/* Mode Selection - Hidden for rest/transition blocks from session builder */}
+        {!isRestOrTransitionFromSession && (
+          <View style={styles.section}>
+            <Text style={styles.label}>Mode *</Text>
+            <View style={styles.modeButtonContainer}>
+              {renderModeButton(BlockMode.DURATION, "Duration")}
+              {renderModeButton(BlockMode.REPS, "Reps")}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Duration Input */}
-        {mode === BlockMode.DURATION && (
+        {/* Duration Input - Always shown for rest/transition blocks, conditional for others */}
+        {(mode === BlockMode.DURATION || isRestOrTransitionFromSession) && (
           <View style={styles.section}>
             <Text style={styles.label}>Duration *</Text>
             <View style={styles.durationContainer}>
