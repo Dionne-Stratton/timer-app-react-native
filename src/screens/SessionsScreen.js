@@ -13,6 +13,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useStore from '../store';
 import { getSessionTotalDuration, formatTime } from '../types';
 import { sessionSharingService } from '../services/sessionSharing';
@@ -21,6 +22,7 @@ import ProUpgradeModal from '../components/ProUpgradeModal';
 
 export default function SessionsScreen({ navigation }) {
   const colors = useTheme();
+  const insets = useSafeAreaInsets();
   const sessionTemplates = useStore((state) => state.sessionTemplates);
   const deleteSessionTemplate = useStore((state) => state.deleteSessionTemplate);
   const duplicateSessionTemplate = useStore((state) => state.duplicateSessionTemplate);
@@ -172,7 +174,7 @@ export default function SessionsScreen({ navigation }) {
     }
   };
 
-  const styles = getStyles(colors);
+  const styles = getStyles(colors, insets);
 
   // Filter sessions based on search query
   const filteredSessions = useMemo(() => {
@@ -229,7 +231,7 @@ export default function SessionsScreen({ navigation }) {
       )}
       
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      <View style={[styles.searchContainer, settings.isProUser && styles.searchContainerNoBanner]}>
         <TextInput
           style={styles.searchInput}
           placeholder="Search by name..."
@@ -343,7 +345,7 @@ export default function SessionsScreen({ navigation }) {
   );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -351,6 +353,7 @@ const getStyles = (colors) => StyleSheet.create({
   freeBanner: {
     backgroundColor: colors.cardBackground,
     paddingVertical: 8,
+    paddingTop: Math.max(insets?.top || 0, 8),
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
@@ -364,6 +367,9 @@ const getStyles = (colors) => StyleSheet.create({
     padding: 16,
     paddingBottom: 8,
     backgroundColor: colors.background,
+  },
+  searchContainerNoBanner: {
+    paddingTop: Math.max(insets?.top || 0, 16),
   },
   searchInput: {
     backgroundColor: colors.cardBackground,

@@ -9,12 +9,14 @@ import {
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useStore from '../store';
 import { sessionSharingService } from '../services/sessionSharing';
 import { useTheme } from '../theme';
 
 export default function SettingsScreen({ navigation }) {
   const colors = useTheme();
+  const insets = useSafeAreaInsets();
   const settings = useStore((state) => state.settings);
   const updateSettings = useStore((state) => state.updateSettings);
   const addSessionTemplate = useStore((state) => state.addSessionTemplate);
@@ -135,7 +137,7 @@ export default function SettingsScreen({ navigation }) {
     );
   };
 
-  const styles = getStyles(colors);
+  const styles = getStyles(colors, insets);
 
   const renderSettingSection = (title, children) => (
     <View style={styles.section}>
@@ -162,8 +164,8 @@ export default function SettingsScreen({ navigation }) {
   );
 
   const renderOptionSetting = (label, description, options, currentValue, onSelect) => (
-    <View style={styles.settingRow}>
-      <View style={styles.settingContent}>
+    <View style={styles.settingRowOption}>
+      <View style={[styles.settingContent, styles.settingContentOption]}>
         <Text style={styles.settingLabel}>{label}</Text>
         {description && (
           <Text style={styles.settingDescription}>{description}</Text>
@@ -427,13 +429,14 @@ export default function SettingsScreen({ navigation }) {
   );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
   content: {
     padding: 16,
+    paddingTop: Math.max(insets?.top || 0, 16),
     paddingBottom: 32,
   },
   section: {
@@ -456,7 +459,13 @@ const getStyles = (colors) => StyleSheet.create({
   settingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderMedium,
+  },
+  settingRowOption: {
+    flexDirection: 'column',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderMedium,
@@ -464,6 +473,11 @@ const getStyles = (colors) => StyleSheet.create({
   settingContent: {
     flex: 1,
     marginRight: 16,
+    minWidth: 0,
+  },
+  settingContentOption: {
+    marginRight: 0,
+    marginBottom: 12,
   },
   settingLabel: {
     fontSize: 16,
@@ -477,7 +491,9 @@ const getStyles = (colors) => StyleSheet.create({
   },
   optionsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
+    width: '100%',
   },
   optionButton: {
     paddingHorizontal: 12,

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useStore from '../store';
 import { getSessionTotalDuration, formatTime } from '../types';
 import {
@@ -21,6 +22,7 @@ import { useTheme } from '../theme';
 export default function HomeScreen() {
   const navigation = useNavigation();
   const colors = useTheme();
+  const insets = useSafeAreaInsets();
   
   const sessionTemplates = useStore((state) => state.sessionTemplates);
   const sessionHistory = useStore((state) => state.sessionHistory);
@@ -225,7 +227,7 @@ export default function HomeScreen() {
   );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -235,6 +237,7 @@ const getStyles = (colors) => StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingTop: Math.max(insets?.top || 0, 16),
     paddingBottom: 32,
   },
   card: {

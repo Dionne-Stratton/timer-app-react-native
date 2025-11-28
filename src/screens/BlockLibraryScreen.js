@@ -10,6 +10,7 @@ import {
   TextInput,
   ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import useStore from '../store';
 import { BlockType, getBlockTimingSummary, getBlockTypeColor, BUILT_IN_CATEGORIES } from '../types';
 import { useTheme } from '../theme';
@@ -17,6 +18,7 @@ import ProUpgradeModal from '../components/ProUpgradeModal';
 
 export default function BlockLibraryScreen({ navigation }) {
   const colors = useTheme();
+  const insets = useSafeAreaInsets();
   const blockTemplates = useStore((state) => state.blockTemplates);
   const settings = useStore((state) => state.settings);
   const deleteBlockTemplate = useStore((state) => state.deleteBlockTemplate);
@@ -69,7 +71,7 @@ export default function BlockLibraryScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const styles = getStyles(colors);
+  const styles = getStyles(colors, insets);
 
   // Filter activities based on search query and selected category
   const filteredBlocks = useMemo(() => {
@@ -287,7 +289,7 @@ export default function BlockLibraryScreen({ navigation }) {
   );
 }
 
-const getStyles = (colors) => StyleSheet.create({
+const getStyles = (colors, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -295,6 +297,7 @@ const getStyles = (colors) => StyleSheet.create({
   freeBanner: {
     backgroundColor: colors.cardBackground,
     paddingVertical: 8,
+    paddingTop: Math.max(insets?.top || 0, 8),
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
@@ -306,6 +309,7 @@ const getStyles = (colors) => StyleSheet.create({
   },
   searchContainer: {
     padding: 16,
+    paddingTop: Math.max(insets?.top || 0, 16),
     paddingBottom: 8,
     backgroundColor: colors.background,
   },
