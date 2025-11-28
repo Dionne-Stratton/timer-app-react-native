@@ -7,6 +7,7 @@ import {
   Modal,
   Alert,
   BackHandler,
+  Linking,
 } from "react-native";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { Ionicons } from "@expo/vector-icons";
@@ -55,6 +56,7 @@ export default function RunSessionScreen({ navigation, route }) {
   const timerInterval = useRef(null);
   const preCountdownInterval = useRef(null);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const lastWarningTime = useRef(null);
   const prevIndexRef = useRef(0);
 
@@ -81,7 +83,6 @@ export default function RunSessionScreen({ navigation, route }) {
   // Check if screen was navigated to without a valid session - navigate back immediately
   useEffect(() => {
     if (!sessionId && !runningSession) {
-      // No sessionId param and no running session - pop to top (SessionsList)
       navigation.popToTop();
     }
   }, [sessionId, runningSession, navigation]);
@@ -100,18 +101,14 @@ export default function RunSessionScreen({ navigation, route }) {
   }, [sessionId]);
 
   // Schedule notifications when session starts (after pre-countdown)
-  // Only schedule once when session starts, not every second
   const hasScheduledNotifications = useRef(false);
   const lastScheduledIndex = useRef(-1);
   useEffect(() => {
     if (runningSession && !isPreCountdown && isRunning && !isSessionComplete) {
-      // Only schedule if we haven't scheduled for this block index yet
-      // Block transitions are handled by the separate block transition effect
       if (
         !hasScheduledNotifications.current ||
         currentIndex !== lastScheduledIndex.current
       ) {
-        // Get current state from store to ensure we have the latest remainingSeconds
         const currentState = useStore.getState();
         notificationService.scheduleSessionNotifications(
           runningSession,
@@ -123,13 +120,11 @@ export default function RunSessionScreen({ navigation, route }) {
         lastScheduledIndex.current = currentIndex;
       }
     } else {
-      // Reset flag when session stops or pauses
       hasScheduledNotifications.current = false;
       lastScheduledIndex.current = -1;
     }
 
     return () => {
-      // Clean up notifications on unmount
       notificationService.cancelAllNotifications();
     };
   }, [
@@ -148,12 +143,10 @@ export default function RunSessionScreen({ navigation, route }) {
       !isPreCountdown &&
       runningSession
     ) {
-      // Block transition happened (moved to next block)
       lastWarningTime.current = null;
       cueService.blockComplete(settings.enableSounds, settings.enableVibration);
       prevIndexRef.current = currentIndex;
 
-      // Reschedule notifications for remaining blocks
       if (isRunning) {
         notificationService.rescheduleNotifications(
           runningSession,
@@ -194,26 +187,21 @@ export default function RunSessionScreen({ navigation, route }) {
   // Handle pre-countdown
   useEffect(() => {
     if (isPreCountdown && preCountdownRemaining > 0) {
-      // Start pre-countdown interval - tick every second
       if (!preCountdownInterval.current) {
         preCountdownInterval.current = setInterval(() => {
           tickPreCountdown();
         }, 1000);
       }
     } else if (isPreCountdown && preCountdownRemaining === 0) {
-      // Pre-countdown just finished (showing "GO!")
-      // Clear the interval and wait a moment before transitioning
       if (preCountdownInterval.current) {
         clearInterval(preCountdownInterval.current);
         preCountdownInterval.current = null;
       }
-      // Show "GO!" for 1 second, then finish pre-countdown
       const timeoutId = setTimeout(() => {
-        tickPreCountdown(); // This will set isPreCountdown to false and isRunning to true
+        tickPreCountdown();
       }, 1000);
       return () => clearTimeout(timeoutId);
     } else {
-      // Pre-countdown finished, clear interval
       if (preCountdownInterval.current) {
         clearInterval(preCountdownInterval.current);
         preCountdownInterval.current = null;
@@ -238,7 +226,6 @@ export default function RunSessionScreen({ navigation, route }) {
         const currentRemaining = useStore.getState().remainingSeconds;
         const blockDuration = getBlockDurationSeconds(currentBlock);
 
-        // Check for "almost done" warning
         if (
           blockDuration > 15 &&
           currentRemaining === settings.warningSecondsBeforeEnd &&
@@ -251,7 +238,6 @@ export default function RunSessionScreen({ navigation, route }) {
           );
         }
 
-        // Tick the timer (this handles block transitions internally)
         tickTimer();
       }, 1000);
     } else {
@@ -314,12 +300,11 @@ export default function RunSessionScreen({ navigation, route }) {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
-        // Only handle back button if there's a running session
         if (runningSession && !isSessionComplete) {
           handleStopSession();
-          return true; // Prevent default back behavior
+          return true;
         }
-        return false; // Allow default back behavior
+        return false;
       }
     );
 
@@ -335,11 +320,9 @@ export default function RunSessionScreen({ navigation, route }) {
 
   const handleTogglePause = () => {
     if (isRunning) {
-      // Pause - cancel notifications
       pauseTimer();
       notificationService.cancelAllNotifications();
     } else {
-      // Resume - reschedule notifications
       startTimer();
       lastWarningTime.current = null;
       if (runningSession) {
@@ -365,7 +348,6 @@ export default function RunSessionScreen({ navigation, route }) {
     } else {
       cueService.blockComplete(settings.enableSounds, settings.enableVibration);
 
-      // Reschedule notifications after skipping
       if (runningSession) {
         const newState = useStore.getState();
         notificationService.rescheduleNotifications(
@@ -390,7 +372,6 @@ export default function RunSessionScreen({ navigation, route }) {
 
     const success = previousBlock();
     if (success) {
-      // Reschedule notifications after going back
       if (runningSession) {
         const newState = useStore.getState();
         notificationService.rescheduleNotifications(
@@ -407,7 +388,6 @@ export default function RunSessionScreen({ navigation, route }) {
     }
   };
 
-  // Define styles early so they're available for all return statements
   const styles = getStyles(insets);
 
   if (
@@ -442,6 +422,32 @@ export default function RunSessionScreen({ navigation, route }) {
     [BlockType.ACTIVITY]: "Activity",
     [BlockType.REST]: "Rest",
     [BlockType.TRANSITION]: "Transition",
+  };
+
+  const hasNotes =
+    currentBlock && typeof currentBlock.notes === "string"
+      ? currentBlock.notes.trim().length > 0
+      : false;
+  const hasUrl =
+    currentBlock && typeof currentBlock.url === "string"
+      ? currentBlock.url.trim().length > 0
+      : false;
+  const hasInstructions = hasNotes || hasUrl;
+
+  const handleOpenUrl = async () => {
+    if (!hasUrl) return;
+    const url = currentBlock.url.trim();
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Invalid link", "Unable to open this URL.");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Something went wrong trying to open the link.");
+      console.error(err);
+    }
   };
 
   // Pre-countdown screen
@@ -501,6 +507,21 @@ export default function RunSessionScreen({ navigation, route }) {
             {formatTime(remainingSeconds)}
           </Text>
         </View>
+
+        {/* Instructions button (notes / URL) */}
+        {hasInstructions && (
+          <TouchableOpacity
+            style={styles.instructionsButton}
+            onPress={() => setShowInstructionsModal(true)}
+          >
+            <Ionicons
+              name="information-circle-outline"
+              size={18}
+              color="#fff"
+            />
+            <Text style={styles.instructionsButtonText}>View instructions</Text>
+          </TouchableOpacity>
+        )}
 
         {nextBlockItem && (
           <View style={styles.nextBlockContainer}>
@@ -586,6 +607,47 @@ export default function RunSessionScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
+
+      {/* Instructions Modal */}
+      <Modal
+        visible={showInstructionsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInstructionsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.instructionsModalContent}>
+            <Text style={styles.instructionsTitle}>{currentBlock.label}</Text>
+
+            {hasNotes && (
+              <View style={styles.instructionsSection}>
+                <Text style={styles.instructionsSectionLabel}>Notes</Text>
+                <Text style={styles.instructionsNotesText}>
+                  {currentBlock.notes}
+                </Text>
+              </View>
+            )}
+
+            {hasUrl && (
+              <View style={styles.instructionsSection}>
+                <Text style={styles.instructionsSectionLabel}>Link</Text>
+                <TouchableOpacity onPress={handleOpenUrl}>
+                  <Text style={styles.instructionsLinkText}>
+                    {currentBlock.url}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.instructionsCloseButton}
+              onPress={() => setShowInstructionsModal(false)}
+            >
+              <Text style={styles.instructionsCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -657,11 +719,11 @@ const getStyles = (insets) =>
       fontSize: 16,
       color: "#999",
       textAlign: "center",
-      marginBottom: 40,
+      marginBottom: 24,
     },
     timerContainer: {
       alignItems: "center",
-      marginBottom: 40,
+      marginBottom: 20,
     },
     timerText: {
       fontSize: 80,
@@ -669,12 +731,27 @@ const getStyles = (insets) =>
       color: "#4A7C9E",
       fontFamily: "monospace",
     },
+    instructionsButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: "#3a3a3a",
+      marginBottom: 20,
+    },
+    instructionsButtonText: {
+      color: "#fff",
+      marginLeft: 8,
+      fontSize: 14,
+      fontWeight: "600",
+    },
     nextBlockContainer: {
-      marginTop: 20,
+      marginTop: 8,
     },
     nextBlockLabel: {
-      fontSize: 14,
-      color: "#666",
+      fontSize: 18,
+      color: "#999",
       textAlign: "center",
     },
     controls: {
@@ -777,6 +854,54 @@ const getStyles = (insets) =>
       alignSelf: "center",
     },
     backButtonText: {
+      color: "#fff",
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    // Instructions modal styling
+    instructionsModalContent: {
+      backgroundColor: "#2a2a2a",
+      borderRadius: 16,
+      padding: 24,
+      minWidth: 280,
+      maxWidth: "90%",
+    },
+    instructionsTitle: {
+      fontSize: 22,
+      fontWeight: "700",
+      color: "#fff",
+      marginBottom: 16,
+      textAlign: "center",
+    },
+    instructionsSection: {
+      marginBottom: 16,
+    },
+    instructionsSectionLabel: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: "#ccc",
+      marginBottom: 6,
+      textTransform: "uppercase",
+    },
+    instructionsNotesText: {
+      fontSize: 16,
+      color: "#fff",
+      lineHeight: 22,
+    },
+    instructionsLinkText: {
+      fontSize: 16,
+      color: "#4da6ff",
+      textDecorationLine: "underline",
+    },
+    instructionsCloseButton: {
+      marginTop: 8,
+      alignSelf: "center",
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+      borderRadius: 8,
+      backgroundColor: "#4A7C9E",
+    },
+    instructionsCloseButtonText: {
       color: "#fff",
       fontSize: 16,
       fontWeight: "600",
