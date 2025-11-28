@@ -1,4 +1,5 @@
-# Timer App - React Native Expo
+# Cadence Studio - Find your rhythm. Shape your life. 
+- React Native Expo
 
 A cross-platform mobile timer application built with React Native and Expo. Create reusable activity blocks, assemble them into sessions, and run them with audio/vibration cues and background-safe notifications. Fully offline-capable with no backend dependencies.
 
