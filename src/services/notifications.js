@@ -1,6 +1,6 @@
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
-import { getBlockDurationSeconds } from '../types';
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+import { getBlockDurationSeconds } from "../types";
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -16,24 +16,24 @@ Notifications.setNotificationHandler({
  * Notification service for scheduling and managing session notifications
  */
 export const notificationService = {
-  // Storage for notification IDs
+  // Storage for notification IDs (optional, for debugging/cancellation)
   notificationIds: [],
 
   /**
    * Request permissions (must be called before scheduling)
    */
   async requestPermissions() {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
+        lightColor: "#FF231F7C",
       });
     }
 
     const { status } = await Notifications.requestPermissionsAsync();
-    return status === 'granted';
+    return status === "granted";
   },
 
   /**
@@ -42,6 +42,18 @@ export const notificationService = {
   async cancelAllNotifications() {
     await Notifications.cancelAllScheduledNotificationsAsync();
     this.notificationIds = [];
+  },
+
+  /**
+   * Helper: schedule a notification at a specific time (ms timestamp)
+   */
+  async scheduleAt(content, whenMs) {
+    const id = await Notifications.scheduleNotificationAsync({
+      content,
+      // Important: use a Date directly, not { date: ... }
+      trigger: new Date(whenMs),
+    });
+    return id;
   },
 
   /**
@@ -60,156 +72,164 @@ export const notificationService = {
     // Cancel existing notifications
     await this.cancelAllNotifications();
 
-    if (!session || !session.items) return;
+    if (!session || !session.items || session.items.length === 0) return;
+    if (currentIndex < 0 || currentIndex >= session.items.length) return;
 
     // Request permissions if not already granted
     const hasPermission = await this.requestPermissions();
     if (!hasPermission) {
-      console.warn('Notification permissions not granted');
+      console.warn("Notification permissions not granted");
       return;
     }
 
     const now = Date.now();
-    let currentTime = now + (remainingSeconds * 1000); // Current block end time
     const notificationIds = [];
 
-    // Schedule notifications for remaining blocks
+    const currentBlock = session.items[currentIndex];
+    if (!currentBlock) return;
+
+    const currentBlockDuration = getBlockDurationSeconds(currentBlock) || 0;
+
+    // Normalize remainingSeconds so we don't schedule in the past
+    let safeRemaining =
+      typeof remainingSeconds === "number"
+        ? remainingSeconds
+        : currentBlockDuration;
+
+    if (safeRemaining <= 0 || safeRemaining > currentBlockDuration) {
+      // If timer state is weird (0 / negative / too large), assume full block left
+      safeRemaining = currentBlockDuration;
+    }
+
+    // This is when the *current* block ends (in ms)
+    let currentTime = now + safeRemaining * 1000;
+
+    // Loop through current and future blocks
     for (let i = currentIndex; i < session.items.length; i++) {
       const block = session.items[i];
-      const blockDuration = getBlockDurationSeconds(block);
-      
-      // Skip if we're past the start of this block
+      const blockDuration = getBlockDurationSeconds(block) || 0;
+      const isLastBlock = i === session.items.length - 1;
+
       if (i === currentIndex) {
-        // We're in this block - schedule end and next block start
+        // ---- CURRENT BLOCK ----
         const blockEndTime = currentTime;
-        const nextBlockStartTime = blockEndTime;
 
-        // Schedule block end notification (if not last block)
-        if (i < session.items.length - 1) {
-          const endId = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Block Complete',
-              body: `Finished: ${block.label}`,
-              sound: true,
-            },
-            trigger: {
-              date: new Date(blockEndTime),
-            },
-          });
-          notificationIds.push(endId);
-
-          // Schedule next block start notification
-          const nextBlock = session.items[i + 1];
-          const startId = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Next Block',
-              body: `${nextBlock.label} starting now`,
-              sound: true,
-            },
-            trigger: {
-              date: new Date(nextBlockStartTime),
-            },
-          });
-          notificationIds.push(startId);
-        } else {
-          // Last block - schedule session complete
-          const completeId = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Session Complete! 🎉',
+        if (isLastBlock) {
+          // Last block: schedule session complete
+          const completeId = await this.scheduleAt(
+            {
+              title: "Session Complete! 🎉",
               body: `Completed: ${session.name}`,
               sound: true,
             },
-            trigger: {
-              date: new Date(blockEndTime),
-            },
-          });
+            blockEndTime
+          );
           notificationIds.push(completeId);
+        } else {
+          // Not last block: schedule "block complete" + "next block starting"
+          const nextBlock = session.items[i + 1];
+
+          const endId = await this.scheduleAt(
+            {
+              title: "Block Complete",
+              body: `Finished: ${block.label}`,
+              sound: true,
+            },
+            blockEndTime
+          );
+          notificationIds.push(endId);
+
+          const startId = await this.scheduleAt(
+            {
+              title: "Next Block",
+              body: `${nextBlock.label} starting now`,
+              sound: true,
+            },
+            blockEndTime
+          );
+          notificationIds.push(startId);
         }
 
-        // Schedule "almost done" warning if block is long enough
-        if (blockDuration > 15 && remainingSeconds > warningSecondsBeforeEnd) {
-          const warningTime = currentTime - (warningSecondsBeforeEnd * 1000);
+        // "Almost done" warning for current block
+        if (
+          blockDuration > 15 &&
+          warningSecondsBeforeEnd > 0 &&
+          safeRemaining > warningSecondsBeforeEnd
+        ) {
+          const warningTime = blockEndTime - warningSecondsBeforeEnd * 1000;
           if (warningTime > now) {
-            const warningId = await Notifications.scheduleNotificationAsync({
-              content: {
-                title: 'Almost Done',
+            const warningId = await this.scheduleAt(
+              {
+                title: "Almost Done",
                 body: `${block.label} - ${warningSecondsBeforeEnd} seconds remaining`,
                 sound: true,
               },
-              trigger: {
-                date: new Date(warningTime),
-              },
-            });
+              warningTime
+            );
             notificationIds.push(warningId);
           }
         }
 
-        // Move to next block
-        currentTime += blockDuration * 1000;
+        // Move timeline forward: end of current block is the start of next block
+        currentTime = blockEndTime;
       } else {
-        // Future blocks
+        // ---- FUTURE BLOCKS ----
         const blockStartTime = currentTime;
-        const blockEndTime = currentTime + (blockDuration * 1000);
+        const blockEndTime = blockStartTime + blockDuration * 1000;
 
-        // Schedule block start notification
-        const startId = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Next Block',
+        // Next block start notification
+        const startId = await this.scheduleAt(
+          {
+            title: "Next Block",
             body: `${block.label} starting now`,
             sound: true,
           },
-          trigger: {
-            date: new Date(blockStartTime),
-          },
-        });
+          blockStartTime
+        );
         notificationIds.push(startId);
 
-        // Schedule block end notification (if not last block)
-        if (i < session.items.length - 1) {
-          const endId = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Block Complete',
-              body: `Finished: ${block.label}`,
-              sound: true,
-            },
-            trigger: {
-              date: new Date(blockEndTime),
-            },
-          });
-          notificationIds.push(endId);
-        } else {
-          // Last block - schedule session complete
-          const completeId = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Session Complete! 🎉',
+        if (isLastBlock) {
+          // Last block: session complete at its end
+          const completeId = await this.scheduleAt(
+            {
+              title: "Session Complete! 🎉",
               body: `Completed: ${session.name}`,
               sound: true,
             },
-            trigger: {
-              date: new Date(blockEndTime),
-            },
-          });
+            blockEndTime
+          );
           notificationIds.push(completeId);
-        }
-
-        // Schedule "almost done" warning if block is long enough
-        if (blockDuration > 15) {
-          const warningTime = blockEndTime - (warningSecondsBeforeEnd * 1000);
-          const warningId = await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Almost Done',
-              body: `${block.label} - ${warningSecondsBeforeEnd} seconds remaining`,
+        } else {
+          // Not last: block complete notification
+          const endId = await this.scheduleAt(
+            {
+              title: "Block Complete",
+              body: `Finished: ${block.label}`,
               sound: true,
             },
-            trigger: {
-              date: new Date(warningTime),
-            },
-          });
-          notificationIds.push(warningId);
+            blockEndTime
+          );
+          notificationIds.push(endId);
         }
 
-        // Move to next block
-        currentTime += blockDuration * 1000;
+        // "Almost done" warning for future block
+        if (blockDuration > 15 && warningSecondsBeforeEnd > 0) {
+          const warningTime = blockEndTime - warningSecondsBeforeEnd * 1000;
+          if (warningTime > now) {
+            const warningId = await this.scheduleAt(
+              {
+                title: "Almost Done",
+                body: `${block.label} - ${warningSecondsBeforeEnd} seconds remaining`,
+                sound: true,
+              },
+              warningTime
+            );
+            notificationIds.push(warningId);
+          }
+        }
+
+        // Advance timeline
+        currentTime = blockEndTime;
       }
     }
 
@@ -234,4 +254,3 @@ export const notificationService = {
     );
   },
 };
-
