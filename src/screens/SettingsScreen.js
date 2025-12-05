@@ -14,6 +14,11 @@ import useStore from "../store";
 import { sessionSharingService } from "../services/sessionSharing";
 import { useTheme } from "../theme";
 
+// Warning time limits
+const MIN_WARNING_SECONDS = 5;
+const MAX_WARNING_SECONDS = 30;
+const DEFAULT_WARNING_SECONDS = 10;
+
 export default function SettingsScreen({ navigation }) {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
@@ -34,8 +39,13 @@ export default function SettingsScreen({ navigation }) {
     updateSettings({ preCountdownSeconds: seconds });
   };
 
+  // Clamp input and stored value to [5, 30]
   const handleWarningSecondsChange = (seconds) => {
-    updateSettings({ warningSecondsBeforeEnd: seconds });
+    const clamped = Math.min(
+      MAX_WARNING_SECONDS,
+      Math.max(MIN_WARNING_SECONDS, seconds)
+    );
+    updateSettings({ warningSecondsBeforeEnd: clamped });
   };
 
   const handleToggle = (key) => {
@@ -47,8 +57,6 @@ export default function SettingsScreen({ navigation }) {
       const importedSession = await sessionSharingService.importSession();
 
       if (!importedSession) {
-        // Either cancelled, invalid file, or an internal error that resolved to null
-        // You can comment this out later if it feels too noisy.
         Alert.alert("Import cancelled", "No session was imported.");
         return;
       }
@@ -167,6 +175,14 @@ export default function SettingsScreen({ navigation }) {
     );
   };
 
+  // Normalize warning seconds for display (in case something older stored 0–60)
+  const rawWarningSeconds =
+    settings.warningSecondsBeforeEnd ?? DEFAULT_WARNING_SECONDS;
+  const warningSeconds = Math.min(
+    MAX_WARNING_SECONDS,
+    Math.max(MIN_WARNING_SECONDS, rawWarningSeconds)
+  );
+
   const styles = getStyles(colors, insets);
 
   const renderSettingSection = (title, children) => (
@@ -236,8 +252,8 @@ export default function SettingsScreen({ navigation }) {
     description,
     value,
     onValueChange,
-    min = 0,
-    max = 60
+    min = 5,
+    max = 30
   ) => (
     <View style={styles.settingRow}>
       <View style={styles.settingContent}>
@@ -315,11 +331,11 @@ export default function SettingsScreen({ navigation }) {
           <View>
             {renderNumberSetting(
               "Warning Time",
-              "Seconds before block end to show warning (0-60)",
-              settings.warningSecondsBeforeEnd,
+              "Seconds before block end to play “You’re almost done” (5–30s)",
+              warningSeconds,
               handleWarningSecondsChange,
-              0,
-              60
+              MIN_WARNING_SECONDS,
+              MAX_WARNING_SECONDS
             )}
           </View>
         )}
@@ -404,7 +420,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
         )}
 
-        {/* Import/Export Section */}
+        {/* Session Sharing Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Session Sharing</Text>
           <TouchableOpacity

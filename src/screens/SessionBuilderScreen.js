@@ -9,13 +9,14 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
-  FlatList,
   Switch,
   Modal,
 } from "react-native";
+import DraggableFlatList from "react-native-draggable-flatlist";
 import useStore from "../store";
 import {
   BlockType,
+  BlockMode,
   getBlockTimingSummary,
   getSessionTotalDuration,
   formatTime,
@@ -471,55 +472,6 @@ export default function SessionBuilderScreen({ navigation, route }) {
     ])
   );
 
-  // useEffect(() => {
-  //   const headerStyles = {
-  //     headerRightContainer: {
-  //       flexDirection: "row",
-  //       alignItems: "center",
-  //       gap: 12,
-  //     },
-  //     discardButton: {
-  //       paddingHorizontal: 16,
-  //       paddingVertical: 8,
-  //     },
-  //     discardButtonText: {
-  //       color: colors.error,
-  //       fontSize: 16,
-  //       fontWeight: "600",
-  //     },
-  //     saveButton: {
-  //       paddingHorizontal: 16,
-  //       paddingVertical: 8,
-  //     },
-  //     saveButtonText: {
-  //       color: colors.textLight,
-  //       fontSize: 16,
-  //       fontWeight: "600",
-  //     },
-  //   };
-
-  //   navigation.setOptions({
-  //     headerRight: () =>
-  //       // Only show Save and Discard buttons for new sessions (not when editing existing sessions)
-  //       isEditing ? null : (
-  //         <View style={headerStyles.headerRightContainer}>
-  //           <TouchableOpacity
-  //             onPress={() => setDiscardModalVisible(true)}
-  //             style={headerStyles.discardButton}
-  //           >
-  //             <Text style={headerStyles.discardButtonText}>Discard</Text>
-  //           </TouchableOpacity>
-  //           <TouchableOpacity
-  //             onPress={handleSave}
-  //             style={headerStyles.saveButton}
-  //           >
-  //             <Text style={headerStyles.saveButtonText}>Save</Text>
-  //           </TouchableOpacity>
-  //         </View>
-  //       ),
-  //   });
-  // }, [isEditing, sessionName, items, scheduledDaysOfWeek, navigation, colors]);
-
   const handleSave = async () => {
     if (!sessionName.trim()) {
       Alert.alert("Validation Error", "Please enter a session name.");
@@ -639,16 +591,11 @@ export default function SessionBuilderScreen({ navigation, route }) {
 
   const handleEditItem = (index) => {
     const item = items[index];
-    // Navigate to BlockEditScreen with session context
-    // blockInstanceId is the id of the BlockInstance in the session
-    // sessionId identifies which session we're editing (use generated ID if null)
-    // blockIndex is the position in the session
-    // blockInstanceData is the item data itself - needed for unsaved items (like duplicates)
     navigation.navigate("BlockEdit", {
       blockInstanceId: item.id,
-      sessionId: sessionId, // This will be the generated ID for new sessions
+      sessionId: sessionId,
       blockIndex: index,
-      blockInstanceData: item, // Pass the item data directly for unsaved items
+      blockInstanceData: item,
     });
   };
 
@@ -663,37 +610,10 @@ export default function SessionBuilderScreen({ navigation, route }) {
     }
   };
 
-  const handleMoveUp = (index) => {
-    if (index > 0) {
-      const newItems = [...items];
-      [newItems[index - 1], newItems[index]] = [
-        newItems[index],
-        newItems[index - 1],
-      ];
-      setItems(newItems);
-      // Only save draft for new sessions (autosave handles existing sessions)
-      if (!isEditing) {
-        saveDraftNow(newItems);
-      }
-    }
-  };
+  // --- Drag-and-drop aware renderItem ---
+  const renderItem = ({ item, drag, isActive, getIndex }) => {
+    const index = getIndex?.() ?? 0;
 
-  const handleMoveDown = (index) => {
-    if (index < items.length - 1) {
-      const newItems = [...items];
-      [newItems[index], newItems[index + 1]] = [
-        newItems[index + 1],
-        newItems[index],
-      ];
-      setItems(newItems);
-      // Only save draft for new sessions (autosave handles existing sessions)
-      if (!isEditing) {
-        saveDraftNow(newItems);
-      }
-    }
-  };
-
-  const renderItem = ({ item, index }) => {
     const typeLabels = {
       [BlockType.ACTIVITY]: "Activity",
       [BlockType.REST]: "Rest",
@@ -706,6 +626,7 @@ export default function SessionBuilderScreen({ navigation, route }) {
         style={[
           styles.blockItem,
           { borderLeftWidth: 4, borderLeftColor: blockTypeColor },
+          isActive && { opacity: 0.9 },
         ]}
       >
         <View style={styles.blockContent}>
@@ -726,46 +647,23 @@ export default function SessionBuilderScreen({ navigation, route }) {
             </Text>
           </View>
         </View>
+
         <View style={styles.blockActions}>
-          <View style={styles.reorderButtons}>
-            <TouchableOpacity
-              style={[
-                styles.reorderButton,
-                index === 0 && styles.reorderButtonDisabled,
-              ]}
-              onPress={() => handleMoveUp(index)}
-              disabled={index === 0}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text
-                style={[
-                  styles.reorderButtonText,
-                  index === 0 && styles.reorderButtonTextDisabled,
-                ]}
-              >
-                ↑
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.reorderButton,
-                index === items.length - 1 && styles.reorderButtonDisabled,
-              ]}
-              onPress={() => handleMoveDown(index)}
-              disabled={index === items.length - 1}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text
-                style={[
-                  styles.reorderButtonText,
-                  index === items.length - 1 &&
-                    styles.reorderButtonTextDisabled,
-                ]}
-              >
-                ↓
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {/* Drag handle */}
+          <TouchableOpacity
+            style={styles.dragHandle}
+            onLongPress={drag}
+            disabled={isActive}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name="reorder-three-outline"
+              size={22}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+
+          {/* Edit / Duplicate / Delete */}
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleEditItem(index)}
@@ -923,11 +821,20 @@ export default function SessionBuilderScreen({ navigation, route }) {
               </Text>
             </View>
           ) : (
-            <FlatList
+            <DraggableFlatList
               data={items}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               scrollEnabled={false}
+              containerStyle={{ paddingTop: 4 }}
+              onDragEnd={({ data }) => {
+                setItems(data);
+                // Only save draft explicitly for new sessions
+                if (!isEditing) {
+                  saveDraftNow(data);
+                }
+                // For existing sessions, autosave effect will pick up
+              }}
             />
           )}
         </View>
@@ -1200,30 +1107,12 @@ const getStyles = (colors) =>
       gap: 4,
       alignItems: "center",
     },
-    reorderButtons: {
-      flexDirection: "row",
-      gap: 2,
-      marginRight: 4,
-    },
-    reorderButton: {
-      paddingHorizontal: 8,
+    dragHandle: {
+      paddingHorizontal: 6,
       paddingVertical: 6,
-      borderRadius: 6,
-      backgroundColor: colors.infoLight,
-      minWidth: 32,
+      marginRight: 4,
+      justifyContent: "center",
       alignItems: "center",
-    },
-    reorderButtonDisabled: {
-      backgroundColor: colors.background,
-      opacity: 0.5,
-    },
-    reorderButtonText: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: colors.info,
-    },
-    reorderButtonTextDisabled: {
-      color: colors.textTertiary,
     },
     actionButton: {
       paddingHorizontal: 8,
@@ -1233,22 +1122,11 @@ const getStyles = (colors) =>
       justifyContent: "center",
       alignItems: "center",
     },
-    actionButtonText: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: colors.primary,
-    },
     duplicateButton: {
       backgroundColor: colors.infoLight,
     },
-    duplicateButtonText: {
-      color: colors.info,
-    },
     deleteButton: {
       backgroundColor: colors.errorLight,
-    },
-    deleteButtonText: {
-      color: colors.errorText,
     },
     emptyContainer: {
       padding: 40,
@@ -1294,29 +1172,6 @@ const getStyles = (colors) =>
     addButtonText: {
       color: colors.textLight,
       fontSize: 14,
-      fontWeight: "600",
-    },
-    saveButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-    },
-    saveButtonText: {
-      color: colors.textLight,
-      fontSize: 16,
-      fontWeight: "600",
-    },
-    headerRightContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-    },
-    discardButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-    },
-    discardButtonText: {
-      color: colors.error,
-      fontSize: 16,
       fontWeight: "600",
     },
     modalOverlay: {

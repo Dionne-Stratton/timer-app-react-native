@@ -23,12 +23,12 @@ import {
 } from "../types";
 import { useTheme } from "../theme";
 import { cueService } from "../services/cues";
-import { notificationService } from "../services/notifications";
 
 export default function RunSessionScreen({ navigation, route }) {
   const { sessionId, returnTo } = route.params || {};
   const colors = useTheme();
   const insets = useSafeAreaInsets();
+
   const sessionTemplates = useStore((state) => state.sessionTemplates);
   const settings = useStore((state) => state.settings);
   const runningSession = useStore((state) => state.runningSession);
@@ -60,16 +60,15 @@ export default function RunSessionScreen({ navigation, route }) {
   const lastWarningTime = useRef(null);
   const prevIndexRef = useRef(0);
 
-  // Function to navigate back when a session ends or is stopped
+  // Navigate back helper
   const navigateBack = () => {
-    // 1) Always clean up the Sessions stack so RunSession isn't left on top
+    // Reset stack so RunSession isn't left hanging
     navigation.reset({
       index: 0,
       routes: [{ name: "SessionsList" }],
     });
 
-    // 2) If this run was started from a specific tab (e.g. Home via Quick Start),
-    //    switch back to that tab after resetting the stack
+    // If we came from a specific tab, go back there
     if (returnTo?.tab) {
       const parentNav = navigation.getParent();
       if (parentNav) {
@@ -80,14 +79,14 @@ export default function RunSessionScreen({ navigation, route }) {
     }
   };
 
-  // Check if screen was navigated to without a valid session - navigate back immediately
+  // If we landed here with no session, bail out
   useEffect(() => {
     if (!sessionId && !runningSession) {
       navigation.popToTop();
     }
   }, [sessionId, runningSession, navigation]);
 
-  // Initialize session when screen loads
+  // Initialize session on mount
   useEffect(() => {
     if (sessionId && !runningSession) {
       const success = startSession(sessionId);
@@ -100,41 +99,6 @@ export default function RunSessionScreen({ navigation, route }) {
     }
   }, [sessionId]);
 
-  // Schedule notifications when session starts (after pre-countdown)
-  const hasScheduledNotifications = useRef(false);
-  const lastScheduledIndex = useRef(-1);
-  useEffect(() => {
-    if (runningSession && !isPreCountdown && isRunning && !isSessionComplete) {
-      if (
-        !hasScheduledNotifications.current ||
-        currentIndex !== lastScheduledIndex.current
-      ) {
-        const currentState = useStore.getState();
-        notificationService.scheduleSessionNotifications(
-          runningSession,
-          currentIndex,
-          currentState.remainingSeconds,
-          settings.warningSecondsBeforeEnd
-        );
-        hasScheduledNotifications.current = true;
-        lastScheduledIndex.current = currentIndex;
-      }
-    } else {
-      hasScheduledNotifications.current = false;
-      lastScheduledIndex.current = -1;
-    }
-
-    return () => {
-      notificationService.cancelAllNotifications();
-    };
-  }, [
-    runningSession,
-    isPreCountdown,
-    isRunning,
-    currentIndex,
-    isSessionComplete,
-  ]);
-
   // Track block transitions for cues
   useEffect(() => {
     if (
@@ -146,23 +110,8 @@ export default function RunSessionScreen({ navigation, route }) {
       lastWarningTime.current = null;
       cueService.blockComplete(settings.enableSounds, settings.enableVibration);
       prevIndexRef.current = currentIndex;
-
-      if (isRunning) {
-        notificationService.rescheduleNotifications(
-          runningSession,
-          currentIndex,
-          remainingSeconds,
-          settings.warningSecondsBeforeEnd
-        );
-      }
     }
-  }, [
-    currentIndex,
-    isPreCountdown,
-    runningSession,
-    isRunning,
-    remainingSeconds,
-  ]);
+  }, [currentIndex, isPreCountdown, runningSession, settings]);
 
   // Track session completion
   useEffect(() => {
@@ -214,9 +163,9 @@ export default function RunSessionScreen({ navigation, route }) {
         preCountdownInterval.current = null;
       }
     };
-  }, [isPreCountdown, preCountdownRemaining]);
+  }, [isPreCountdown, preCountdownRemaining, tickPreCountdown]);
 
-  // Handle timer tick
+  // Timer tick + "almost done" cue
   useEffect(() => {
     if (isRunning && !isPreCountdown && runningSession) {
       timerInterval.current = setInterval(() => {
@@ -258,7 +207,10 @@ export default function RunSessionScreen({ navigation, route }) {
     isPreCountdown,
     runningSession,
     currentIndex,
-    remainingSeconds,
+    settings.warningSecondsBeforeEnd,
+    settings.enableSounds,
+    settings.enableVibration,
+    tickTimer,
   ]);
 
   // Clean up on unmount
@@ -287,7 +239,6 @@ export default function RunSessionScreen({ navigation, route }) {
         text: "Stop",
         style: "destructive",
         onPress: () => {
-          notificationService.cancelAllNotifications();
           stopSession();
           navigateBack();
         },
@@ -295,7 +246,7 @@ export default function RunSessionScreen({ navigation, route }) {
     ]);
   };
 
-  // Handle device back button - stop the session
+  // Hardware back: confirm stop
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
@@ -309,10 +260,9 @@ export default function RunSessionScreen({ navigation, route }) {
     );
 
     return () => backHandler.remove();
-  }, [runningSession, isSessionComplete, handleStopSession]);
+  }, [runningSession, isSessionComplete]);
 
   const handleComplete = () => {
-    notificationService.cancelAllNotifications();
     setShowCompleteModal(false);
     stopSession();
     navigateBack();
@@ -321,18 +271,9 @@ export default function RunSessionScreen({ navigation, route }) {
   const handleTogglePause = () => {
     if (isRunning) {
       pauseTimer();
-      notificationService.cancelAllNotifications();
     } else {
       startTimer();
       lastWarningTime.current = null;
-      if (runningSession) {
-        notificationService.rescheduleNotifications(
-          runningSession,
-          currentIndex,
-          remainingSeconds,
-          settings.warningSecondsBeforeEnd
-        );
-      }
     }
   };
 
@@ -347,17 +288,6 @@ export default function RunSessionScreen({ navigation, route }) {
       handleSessionComplete();
     } else {
       cueService.blockComplete(settings.enableSounds, settings.enableVibration);
-
-      if (runningSession) {
-        const newState = useStore.getState();
-        notificationService.rescheduleNotifications(
-          runningSession,
-          newState.currentIndex,
-          newState.remainingSeconds,
-          settings.warningSecondsBeforeEnd
-        );
-      }
-
       if (!isRunning) {
         startTimer();
       }
@@ -372,16 +302,6 @@ export default function RunSessionScreen({ navigation, route }) {
 
     const success = previousBlock();
     if (success) {
-      if (runningSession) {
-        const newState = useStore.getState();
-        notificationService.rescheduleNotifications(
-          runningSession,
-          newState.currentIndex,
-          newState.remainingSeconds,
-          settings.warningSecondsBeforeEnd
-        );
-      }
-
       if (!isRunning) {
         startTimer();
       }
@@ -450,7 +370,7 @@ export default function RunSessionScreen({ navigation, route }) {
     }
   };
 
-  // Pre-countdown screen
+  // Pre-countdown UI
   if (isPreCountdown) {
     return (
       <View style={styles.container}>
@@ -508,7 +428,7 @@ export default function RunSessionScreen({ navigation, route }) {
           </Text>
         </View>
 
-        {/* Instructions button (notes / URL) */}
+        {/* Instructions button */}
         {hasInstructions && (
           <TouchableOpacity
             style={styles.instructionsButton}
@@ -858,7 +778,6 @@ const getStyles = (insets) =>
       fontSize: 16,
       fontWeight: "600",
     },
-    // Instructions modal styling
     instructionsModalContent: {
       backgroundColor: "#2a2a2a",
       borderRadius: 16,
