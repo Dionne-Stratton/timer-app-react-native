@@ -1398,3 +1398,106 @@ Existing activities still usable.
 Cannot create new ones.
 
 We don’t need to implement real purchases yet; just rely on isProUser in tests.”
+
+## Audio Cues
+
+### 1. Cue Events
+
+The app supports three cue events during a session:
+
+1. **Event A – “Almost Done” Warning**
+
+   - **Trigger:** When `warningSecondsBeforeEnd` is reached for the current segment.
+   - **Purpose:** Inform the user that the current segment is about to end.
+   - **Phrase:** “Wrapping up.”
+
+2. **Event B – Segment Transition**
+
+   - **Trigger:** When the current segment ends and the next segment begins.
+   - **Purpose:** Inform the user that a new segment has started.
+   - **Phrase:** “Next.”
+
+3. **Event C – Session Completion**
+
+   - **Trigger:** When the final segment of the session completes.
+   - **Purpose:** Inform the user that the session is finished.
+   - **Phrase:** “Session complete.”
+
+> Note: Sessions only run on the Run Session screen. Navigating away (e.g., to Settings) stops the session, so cue previews in Settings never overlap with an active session.
+
+---
+
+### 2. Cue Packs
+
+The app ships with three built-in cue packs. Each pack contains audio for all three events above, using the same phrases but different styles.
+
+1. **Female Spoken Pack**
+
+   - Event A: female voice saying “Wrapping up.”
+   - Event B: female voice saying “Next.”
+   - Event C: female voice saying “Session complete.”
+
+2. **Male Spoken Pack**
+
+   - Event A: male voice saying “Wrapping up.”
+   - Event B: male voice saying “Next.”
+   - Event C: male voice saying “Session complete.”
+
+3. **Musical Pack**
+
+   - Event A: musical “wrapping up” cue.
+   - Event B: musical “next” cue.
+   - Event C: musical “session complete” cue.
+
+All cue audio files are bundled with the app (no network required).
+
+---
+
+### 3. Settings: Cue Pack Selection
+
+**Setting name (internal):** `audioCuePack`
+**Type:** `"female" | "male" | "music"`
+**Scope:** Global app setting (applies to all sessions).
+**Default value:** `music`
+
+**Settings UI:**
+
+- Section: **Audio Cues**
+- Control: **Cue Voice / Style**
+
+  - Options:
+
+    - “Female Voice”
+    - “Male Voice”
+    - “Musical”
+
+- Selecting an option updates `audioCuePack` immediately. All future sessions use that pack for Events A, B, and C.
+
+---
+
+### 4. Settings: Preview Behavior
+
+To help users understand how each cue pack sounds, the Audio Cues section includes a preview action.
+
+**Preview target phrase:**
+
+- All previews use the **Event A** phrase: “Wrapping up.”
+- Rationale: long enough to showcase the style, shorter than the “Session complete” phrase.
+
+**Preview UI:**
+
+- Each option (“Female Voice”, “Male Voice”, “Musical”) shows a small **Play** icon/button.
+- When the Play button is pressed for a given option:
+
+  - The app plays that option’s **“Wrapping up”** sample.
+
+    - Female option → female “Wrapping up.”
+    - Male option → male “Wrapping up.”
+    - Musical option → musical “Wrapping up.”
+
+  - The preview does not change the selected cue pack unless the user explicitly selects that option.
+
+**Constraints:**
+
+- Previews respect the existing global sound setting (e.g., if `enableSounds` is false, previews are disabled or do nothing).
+- Because sessions do not run while on the Settings screen, previews never overlap with an active session.

@@ -24,6 +24,9 @@ const useStore = create((set, get) => ({
     customCategories: [],
     isProUser: false,
     defaultSaveToLibrary: true,
+    // NEW: which cue pack to use for spoken/music cues
+    // "female" | "male" | "music"
+    audioCuePack: "music",
   },
 
   // Running session state

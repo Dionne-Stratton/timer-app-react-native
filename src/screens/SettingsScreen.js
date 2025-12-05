@@ -8,8 +8,8 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAudioPlayer } from "expo-audio";
 import useStore from "../store";
 import { sessionSharingService } from "../services/sessionSharing";
 import { useTheme } from "../theme";
@@ -18,6 +18,11 @@ import { useTheme } from "../theme";
 const MIN_WARNING_SECONDS = 5;
 const MAX_WARNING_SECONDS = 30;
 const DEFAULT_WARNING_SECONDS = 10;
+
+// Static preview sources (wrapping_up version so they’re long enough)
+const WRAPPING_UP_FEMALE = require("../../assets/sounds/wrapping_up_female.mp3");
+const WRAPPING_UP_MALE = require("../../assets/sounds/wrapping_up_male.mp3");
+const WRAPPING_UP_MUSIC = require("../../assets/sounds/wrapping_up_music.mp3");
 
 export default function SettingsScreen({ navigation }) {
   const colors = useTheme();
@@ -34,6 +39,48 @@ export default function SettingsScreen({ navigation }) {
   );
   const blockTemplates = useStore((state) => state.blockTemplates);
   const sessionTemplates = useStore((state) => state.sessionTemplates);
+
+  // ---- Audio cue pack & preview players ----
+  // Fallback to "music" when the setting is missing so music behaves like the default
+  const audioCuePack = settings.audioCuePack || "music";
+
+  // One player per pack (local asset requires must be static)
+  const femalePreviewPlayer = useAudioPlayer(WRAPPING_UP_FEMALE);
+  const malePreviewPlayer = useAudioPlayer(WRAPPING_UP_MALE);
+  const musicPreviewPlayer = useAudioPlayer(WRAPPING_UP_MUSIC);
+
+  const playCuePreview = () => {
+    if (!settings.enableSounds) {
+      Alert.alert(
+        "Sounds disabled",
+        "Turn on “Enable Sounds” to preview audio cues."
+      );
+      return;
+    }
+
+    let player;
+    if (audioCuePack === "female") {
+      player = femalePreviewPlayer;
+    } else if (audioCuePack === "male") {
+      player = malePreviewPlayer;
+    } else {
+      player = musicPreviewPlayer;
+    }
+
+    try {
+      // Always restart from the beginning
+      if (player.seekTo) {
+        player.seekTo(0);
+      }
+      player.play();
+    } catch (e) {
+      console.warn("Error playing cue preview", e);
+      Alert.alert(
+        "Playback error",
+        "Unable to play the preview sound. Please try again."
+      );
+    }
+  };
 
   const handlePreCountdownChange = (seconds) => {
     updateSettings({ preCountdownSeconds: seconds });
@@ -331,7 +378,7 @@ export default function SettingsScreen({ navigation }) {
           <View>
             {renderNumberSetting(
               "Warning Time",
-              "Seconds before block end to play “You’re almost done” (5–30s)",
+              "Seconds before block end to play “Wrapping up” (5–30s)",
               warningSeconds,
               handleWarningSecondsChange,
               MIN_WARNING_SECONDS,
@@ -346,7 +393,7 @@ export default function SettingsScreen({ navigation }) {
           <View>
             {renderToggleSetting(
               "Enable Sounds",
-              "Play sound cues for block transitions and completion",
+              "Play sound cues for transitions and completion",
               settings.enableSounds,
               () => handleToggle("enableSounds")
             )}
@@ -356,6 +403,44 @@ export default function SettingsScreen({ navigation }) {
               settings.enableVibration,
               () => handleToggle("enableVibration")
             )}
+
+            {/* Audio cue voice/style selection */}
+            {renderOptionSetting(
+              "Audio Cue Style",
+              "Choose between male voice, female voice, or music cues",
+              [
+                { label: "Female", value: "female" },
+                { label: "Male", value: "male" },
+                { label: "Music", value: "music" },
+              ],
+              audioCuePack,
+              (value) => updateSettings({ audioCuePack: value })
+            )}
+
+            {/* Preview button */}
+            <View style={styles.previewRow}>
+              <TouchableOpacity
+                style={[
+                  styles.previewButton,
+                  !settings.enableSounds && styles.previewButtonDisabled,
+                ]}
+                onPress={playCuePreview}
+                activeOpacity={0.8}
+                disabled={!settings.enableSounds}
+              >
+                <Text
+                  style={[
+                    styles.previewButtonText,
+                    !settings.enableSounds && styles.previewButtonTextDisabled,
+                  ]}
+                >
+                  Play Preview
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.previewHint}>
+                Plays the “Wrapping up” cue with the selected style.
+              </Text>
+            </View>
           </View>
         )}
 
@@ -677,5 +762,34 @@ const getStyles = (colors, insets) =>
       fontSize: 14,
       color: colors.primary,
       fontWeight: "500",
+    },
+
+    // Preview UI
+    previewRow: {
+      marginTop: 12,
+    },
+    previewButton: {
+      alignSelf: "flex-start",
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 6,
+      backgroundColor: colors.primary,
+    },
+    previewButtonDisabled: {
+      backgroundColor: colors.borderMedium,
+    },
+    previewButtonText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textLight,
+    },
+    previewButtonTextDisabled: {
+      color: colors.textLight,
+      opacity: 0.7,
+    },
+    previewHint: {
+      marginTop: 6,
+      fontSize: 12,
+      color: colors.textTertiary,
     },
   });

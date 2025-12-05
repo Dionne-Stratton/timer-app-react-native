@@ -177,7 +177,7 @@ export default function RunSessionScreen({ navigation, route }) {
 
         if (
           blockDuration > 15 &&
-          currentRemaining === settings.warningSecondsBeforeEnd &&
+          currentRemaining === settings.warningSecondsBeforeEnd + 1 &&
           lastWarningTime.current !== currentRemaining
         ) {
           lastWarningTime.current = currentRemaining;
