@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -124,10 +124,23 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const handleHistoryRetentionChange = async (retention) => {
+    // Only allow changes for Pro users
+    if (!settings.isProUser) {
+      return;
+    }
     updateSettings({ historyRetention: retention });
     // Enforce retention immediately when setting changes
     await useStore.getState().enforceHistoryRetention();
   };
+
+  // Ensure history retention is set to 30 days on mount for non-Pro users
+  useEffect(() => {
+    if (!settings.isProUser && settings.historyRetention !== "30days") {
+      updateSettings({ historyRetention: "30days" });
+      useStore.getState().enforceHistoryRetention();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleThemeModeChange = (mode) => {
     updateSettings({ themeMode: mode });
@@ -261,7 +274,8 @@ export default function SettingsScreen({ navigation }) {
     description,
     options,
     currentValue,
-    onSelect
+    onSelect,
+    disabled = false
   ) => (
     <View style={styles.settingRowOption}>
       <View style={[styles.settingContent, styles.settingContentOption]}>
@@ -277,13 +291,22 @@ export default function SettingsScreen({ navigation }) {
             style={[
               styles.optionButton,
               currentValue === option.value && styles.optionButtonActive,
+              disabled && styles.optionButtonDisabled,
+              disabled &&
+                currentValue === option.value &&
+                styles.optionButtonActiveDisabled,
             ]}
-            onPress={() => onSelect(option.value)}
+            onPress={() => !disabled && onSelect(option.value)}
+            disabled={disabled}
           >
             <Text
               style={[
                 styles.optionButtonText,
                 currentValue === option.value && styles.optionButtonTextActive,
+                disabled && styles.optionButtonTextDisabled,
+                disabled &&
+                  currentValue === option.value &&
+                  styles.optionButtonTextActiveDisabled,
               ]}
             >
               {option.label}
@@ -526,15 +549,21 @@ export default function SettingsScreen({ navigation }) {
           <View>
             {renderOptionSetting(
               "Keep History For",
-              "Automatically delete history older than selected period",
+              settings.isProUser
+                ? "Automatically delete history older than selected period"
+                : "Free users are limited to 30 days. Upgrade to Pro to customize history retention.",
               [
-                { label: "Unlimited", value: "unlimited" },
+                { label: "30 days", value: "30days" },
                 { label: "3 months", value: "3months" },
                 { label: "6 months", value: "6months" },
                 { label: "12 months", value: "12months" },
+                { label: "Unlimited", value: "unlimited" },
               ],
-              settings.historyRetention || "unlimited",
-              handleHistoryRetentionChange
+              settings.isProUser
+                ? settings.historyRetention || "unlimited"
+                : "30days",
+              handleHistoryRetentionChange,
+              !settings.isProUser // disabled for non-Pro users
             )}
           </View>
         )}
@@ -682,6 +711,22 @@ const getStyles = (colors, insets) =>
     },
     optionButtonTextActive: {
       color: colors.textLight,
+    },
+    optionButtonDisabled: {
+      opacity: 0.5,
+      backgroundColor: colors.borderMedium,
+      borderColor: colors.borderMedium,
+    },
+    optionButtonActiveDisabled: {
+      opacity: 0.7,
+      backgroundColor: colors.borderMedium,
+      borderColor: colors.borderMedium,
+    },
+    optionButtonTextDisabled: {
+      color: colors.textTertiary,
+    },
+    optionButtonTextActiveDisabled: {
+      color: colors.textTertiary,
     },
     numberInputContainer: {
       flexDirection: "row",
