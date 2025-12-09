@@ -825,7 +825,6 @@ export default function SessionBuilderScreen({ navigation, route }) {
               data={items}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
-              scrollEnabled={false}
               containerStyle={{ paddingTop: 4 }}
               onDragEnd={({ data }) => {
                 setItems(data);
